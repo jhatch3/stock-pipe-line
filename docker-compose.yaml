@@ -10,14 +10,3 @@ services:
       POSTGRES_PASSWORD: db_password
     volumes:
       - ./postgres/data:/var/lib/postgresql/data
-  #setup-bash:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile.bash
-    # image: myrepo/setup:bash
-  
-  setup-powershell:
-    build:
-      context: .
-      dockerfile: Dockerfile.powershell
-    image: myrepo/setup:powershell
