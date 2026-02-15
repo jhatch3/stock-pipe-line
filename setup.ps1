@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Creating venv (.venv)..."
 py -3.11 -m venv .venv
+
 .\.venv\Scripts\Activate.ps1
 
 Write-Host "Upgrading pip..."

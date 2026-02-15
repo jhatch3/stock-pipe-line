@@ -38,7 +38,7 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    cd stock-pipeline
    ```
 
-2. **Start Docker containers**
+2. **Start Docker containers - Make Sure Docker is Running** 
    ```bash
    docker-compose up
    ```
@@ -56,7 +56,7 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    cd stock-pipeline
    ```
 
-2. **Start Docker containers**
+2. **Start Docker containers - Make Sure Docker is Running** 
    ```powershell
    docker-compose up
    ```
