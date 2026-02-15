@@ -20,9 +20,6 @@ cat <<EOF > .env
 AIRFLOW_IMAGE_NAME=apache/airflow:2.9.3
 AIRFLOW_UID=$(id -u)
 
-POSTGRES_USER=...
-POSTGRES_PASSWORD=...
-POSTGRES_DB=...
 EOF
 
 echo "Setup complete."

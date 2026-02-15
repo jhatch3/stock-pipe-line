@@ -20,9 +20,6 @@ Write-Host "Creating .env file..."
 AIRFLOW_IMAGE_NAME=apache/airflow:2.9.3
 AIRFLOW_UID=1000
 
-POSTGRES_USER=...
-POSTGRES_PASSWORD=...
-POSTGRES_DB=...
 "@ | Set-Content -Encoding utf8 .env
 
 Write-Host "Setup complete."
