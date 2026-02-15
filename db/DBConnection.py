@@ -45,7 +45,6 @@ class DBConnection:
         if not self.conn:
             return False
         try:
-            # Try to execute a simple query
             cur = self.conn.cursor()
             cur.execute('SELECT 1')
             cur.close()
@@ -93,7 +92,7 @@ class DBConnection:
 
 
 if __name__ == "__main__":
-    # Method 1: Manual management
+
     db = DBConnection()
     if db.is_connected():
         # Use the database

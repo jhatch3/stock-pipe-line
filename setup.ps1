@@ -23,4 +23,3 @@ AIRFLOW_UID=1000
 "@ | Set-Content -Encoding utf8 .env
 
 Write-Host "Setup complete."
-`
