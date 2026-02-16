@@ -48,6 +48,11 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    ./setup.sh
    ```
 
+4. **Set .env variables** 
+   ```
+   OPEN_AI_KEY=...
+   ```
+
 ### Windows
 
 1. **Clone the repository**
@@ -64,6 +69,11 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
 3. **Run setup script** (in a new PowerShell terminal)
    ```powershell
    .\setup.ps1
+   ```
+
+4. **Set .env variables** 
+   ```
+   OPEN_AI_KEY=...
    ```
 
 ## Usage

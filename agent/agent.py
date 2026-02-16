@@ -12,7 +12,7 @@ API_KEY = os.getenv("OPENAI_API_KEY")
 assert API_KEY is not None, "API_KEY must be set in .env file"
 
 class Agent:
-    def __init__(self, input: str, model: str = "gpt-4o-mini"):
+    def __init__(self, input: str, model: str = "gpt-4o-mini-search-preview"):
         self.input = input  # The input to the model
         self.model = model  # Sets the model type
         self.client = self._make_client()  # Connects to OpenAI Client
@@ -31,15 +31,13 @@ class Agent:
             raise
 
     def _generate_payload(self):
-        """
-        Generate the payload for the OpenAI API call.
-        """
+        #TODO: MAYBE PROCESS DATA 
         return {
             "model": self.model,
             "messages": [
                 {"role": "user", "content": self.input}
             ],
-            "response_format": {"type": "json_object"}
+            "web_search_options": {},   # ✅ enables search (for search-preview models)
         }
 
     def _generate_response(self):
@@ -91,8 +89,15 @@ class Agent:
 if __name__ == "__main__":
     print(f"\n{'=' * 128}\n")
     
+    TICKER = "CAT"
+    SCHEMA = {
+    "ticker": "string",
+    "last_updated": "ISO-8601 datetime string",
+    "ai_summary": "string (<= 4500 chars)"
+    }
+
     agent = Agent(
-        input="""You are a financial analysis engine that produces a concise but in-depth ticker brief for database storage.
+        input=f"""You are a financial analysis engine that produces a concise but in-depth ticker brief for database storage.
 
     HARD RULES:
     - Output MUST be valid JSON only. No markdown, no commentary.
@@ -100,7 +105,7 @@ if __name__ == "__main__":
     - ai_summary MUST be <= 4500 characters.
     - Use the provided as_of_datetime as the "last_updated" time.
 
-    TASK: Analyze the ticker: AAPL.
+    TASK: Analyze the ticker: {TICKER}.
 
     CONTEXT (may be empty):
     As-of datetime: 2025-02-15T10:00:00Z # ALWAYS INCLUDE
@@ -115,12 +120,12 @@ if __name__ == "__main__":
     Overall sentiment
     
     Overall this should sound like someone who is skilled at elvaluating businesses and know exactly what matters and does not 
+
+    the ai summarry should be in a basic paragrph form with not new line values or bolding or any one sort of formating
     OUTPUT JSON SCHEMA:
+
     {
-    "ticker": "string",
-    "last_updated": "ISO-8601 datetime string",
-    "char_count": integer,
-    "ai_summary": "string (<= 4500 chars)"
+        SCHEMA
     }
 
     Return ONLY the JSON object."""
@@ -130,8 +135,10 @@ if __name__ == "__main__":
     
     print("\n\n====== Response ======\n")
     if data:
-        print("- AAPL \n\t")
-        pprint(data["ai_summary"])
-    
+
+        pprint(data.get("ticker", " "))
+        pprint(data.get("last_updated", " "))
+        pprint(data.get("ai_summary", " "))
+
     print("\n")
     print(f"{'=' * 128}\n")
