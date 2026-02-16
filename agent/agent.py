@@ -1,126 +1,137 @@
-"""
-Agent Class getting bets
-
-Base Class for each of the sub-agents:
-
-
-"""
-import os, json, requests
+import os
+import json
 import datetime as dt
-
 from openai import OpenAI
 from dotenv import load_dotenv
-from pprint import pprint 
-from time import sleep 
+
+from pprint import pprint
 
 # Load variables from .env file
 load_dotenv()
 API_KEY = os.getenv("OPENAI_API_KEY")
-assert API_KEY != None
+assert API_KEY is not None, "API_KEY must be set in .env file"
 
 class Agent:
-    def __init__(self, name: str, input: str, payload: dict | None = None, model: str = "gpt-4.1"):
-
-        self.name = name                                                                          # Unique Silly name ?
-        self.model = model                                                                        # Sets the model type 
-        self.client = self._make_client()                                                         # Connects to OPEN AI Client 
-
-        self.input = input                                                                        # The input to the model
-        self.payload = payload if payload is not None else self._generate_payload()               # Extra Context for model, ie api route, or http response body. Can be passed through by user or defined function.
-        self.response = None                                                                      # The models response
+    def __init__(self, input: str, model: str = "gpt-4o-mini"):
+        self.input = input  # The input to the model
+        self.model = model  # Sets the model type
+        self.client = self._make_client()  # Connects to OpenAI Client
+        self.response = None  # The model's response
 
     def _make_client(self):
         """
-        Docstring for _make_client
-        
-        :param self: Description
-
-        Sets Open AI Client to prompt too.
+        Sets OpenAI Client to prompt.
         """
         try:
-            client =  OpenAI(api_key=API_KEY)
-        except Error as e:
-            print(f"Error making OPEN AI client !!")
-
-        print(f"Client Connected !!")
-        return client 
+            client = OpenAI(api_key=API_KEY)
+            print(f"Client Connected!!")
+            return client
+        except Exception as e:
+            print(f"Error making OpenAI client: {e}")
+            raise
 
     def _generate_payload(self):
-        raise NotImplemented("def _generate_payload(self) not defined")
-         
-    
+        """
+        Generate the payload for the OpenAI API call.
+        """
+        return {
+            "model": self.model,
+            "messages": [
+                {"role": "user", "content": self.input}
+            ],
+            "response_format": {"type": "json_object"}
+        }
+
     def _generate_response(self):
         """
-        Fetch Gamma markets and keep only selected fields (columns).
+        Generate response from OpenAI API.
         """
-
-        print(f"Making response !!")
-        response = self.client.responses.create(
-            model=self.model,
-            input=self.input
-        )
-
+        print(f"Making response!!")
+        
         try:
-            self.response = json.loads(response.output_text)[0]
-            print(f"Set response !!")
+            payload = self._generate_payload()
+            response = self.client.chat.completions.create(**payload)
+            
+            # Extract the response content
+            response_text = response.choices[0].message.content
+            
+            # Try to parse as JSON
+            try:
+                self.response = json.loads(response_text)
+                print(f"Set response!!")
+            except json.JSONDecodeError as e:
+                self.response = {
+                    "date": dt.date.today().isoformat(),
+                    "ok": False,
+                    "status": 400,
+                    "error": f"Model did not return valid JSON: {e}. Raw: {response_text[:500]}"
+                }
         except Exception as e:
             self.response = {
                 "date": dt.date.today().isoformat(),
                 "ok": False,
-                "status": 400,
-                "error": f"Model did not return valid JSON: {e}. Raw: {response.output_text[:500]}"
+                "status": 500,
+                "error": f"API call failed: {str(e)}"
             }
 
-        return 
-    
     def run(self):
-
-        print("Running !!")
+        """
+        Execute the agent and return the response.
+        """
+        print("Running!!")
         self._generate_response()
         
-        if agent.response == None:
-            print(f"agent.repsone is None !!")
+        if self.response is None:
+            print(f"self.response is None!!")
+            return None
         else:
-            return agent.response
-            
+            return self.response
 
 
 if __name__ == "__main__":
-    print(f"\n================================================================================================================================\n")    
+    print(f"\n{'=' * 128}\n")
+    
     agent = Agent(
-        name="Get-Bet-Agent-001",
-        payload="mock-payload",
-        input= """
+        input="""You are a financial analysis engine that produces a concise but in-depth ticker brief for database storage.
 
-        You are a JSON-only formatter.
+    HARD RULES:
+    - Output MUST be valid JSON only. No markdown, no commentary.
+    - Do NOT fabricate facts, numbers, quotes, or "latest news". If data is missing, say so explicitly.
+    - ai_summary MUST be <= 4500 characters.
+    - Use the provided as_of_datetime as the "last_updated" time.
 
-        Output MUST be valid JSON only.
-        No markdown. No explanations. No extra text.
-        Output MUST be a JSON array of length 10. Nothing else.
+    TASK: Analyze the ticker: AAPL.
 
-       I need data on any subject you can pick, anything you like, you will write a short story. 
-       Additionally i need a json in the following format.
+    CONTEXT (may be empty):
+    As-of datetime: 2025-02-15T10:00:00Z # ALWAYS INCLUDE
+    Price & market data: 
+    Fundamentals: 
+    News: 
+    Filings/excerpts:
+    Earnings call/excerpts: 
+    Other context:
+    Provide summary oncompy like CEO, CTO, famous workers, HQ location, sector, and a little history, 
+    Addintionally what makes them unique.
+    Overall sentiment
+    
+    Overall this should sound like someone who is skilled at elvaluating businesses and know exactly what matters and does not 
+    OUTPUT JSON SCHEMA:
+    {
+    "ticker": "string",
+    "last_updated": "ISO-8601 datetime string",
+    "char_count": integer,
+    "ai_summary": "string (<= 4500 chars)"
+    }
 
-       {
-       "date": mm/dd/yyyy - hh:mm:ss,
-        "ok": True,
-        "status": int(200),
-       "SAID": cryptographic hash value from hashing this promp. Wont even be real but wonder what chat will put
-       "header": string,
-       "subtitle": str,
-       "text": str,
-       "sorces": list[str],
-       }
-        """)
-
+    Return ONLY the JSON object."""
+    )
     
     data = agent.run()
     
-    print("\n\n====== Repsonse ======\n")\
+    print("\n\n====== Response ======\n")
+    if data:
+        print("- AAPL \n\t")
+        pprint(data["ai_summary"])
     
-    if bool(data["ok"]):
-        pprint(data)
-    
-    print("\n\n")
-
-    print(f"================================================================================================================================\n")
+    print("\n")
+    print(f"{'=' * 128}\n")
