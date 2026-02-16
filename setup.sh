@@ -19,7 +19,7 @@ echo "Creating .env file..."
 cat <<EOF > .env
 AIRFLOW_IMAGE_NAME=apache/airflow:2.9.3
 AIRFLOW_UID=$(id -u)
-
+OPENAI_API_KEY=...
 EOF
 
-echo "Setup complete."
+echo "Setup complete. Now set your api keys !"
