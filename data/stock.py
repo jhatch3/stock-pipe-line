@@ -57,9 +57,14 @@ def process_stock_data(
             ts_str = str(ts)
 
         record["timestamp"] = ts_str
-        record["symbol"] = ticker
+        record["symbol"] = str(ticker)
+        record["volume"] = int(record["volume"])
+        record["open"] = float(record["open"])
+        record["close"] = float(record["close"])
+        record["low"] = float(record["low"])
+        record["high"] = float(record["high"])
 
-        # drop noisy keys (alpaca uses n/vw sometimes)
+
         record.pop("trade_count", None)
         record.pop("vwap", None)
         record.pop("n", None)

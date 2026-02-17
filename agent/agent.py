@@ -37,7 +37,7 @@ class Agent:
             "messages": [
                 {"role": "user", "content": self.input}
             ],
-            "web_search_options": {},   # ✅ enables search (for search-preview models)
+            "web_search_options": {},   
         }
 
     def _generate_response(self):
