@@ -61,7 +61,7 @@ async def main():
     end_dt   = [2026, 1, 1]     
     inter = TimeFrame.Day
     
-    for symbol in TICKERS[::10]:
+    for symbol in TICKERS:
 
         print(f"\nProcessing {symbol} Data")
         data = process_stock_data(ticker=symbol, start_date=start_dt, end_date=end_dt)

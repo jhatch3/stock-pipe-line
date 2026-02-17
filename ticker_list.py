@@ -15,7 +15,7 @@ TICKERS = [
     "XOM","CVX","COP","SLB","EOG","PSX","MPC","VLO","HAL","OXY",
     "KMI","WMB","BKR","DVN","FANG","EQT","APA","TSLA",
 
-    "TSLA","HD","LOW","NKE","SBUX","MCD","CMG","BKNG","MAR","HLT",
+    "HD","LOW","NKE","SBUX","MCD","CMG","BKNG","MAR","HLT",
     "ROST","TJX","DG","DLTR","EBAY","ETSY","ULTA","ORLY","AZO","BBY",
 
     "PG","KO","PEP","WMT","COST","PM","MO","CL","KMB",

@@ -186,7 +186,7 @@ class AsyncCommander:
         cols = list(values.keys())
         params = [values[c] for c in cols]
         
-        # Build query with $1, $2, etc. placeholders
+        # Build query with $1, $2, placeholders
         col_str = ", ".join(f'"{c}"' for c in cols)
         placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
         
