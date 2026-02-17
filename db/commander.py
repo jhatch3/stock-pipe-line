@@ -29,7 +29,12 @@ class Commander(DBConnection):
             return None
 
     def list_tables(self, show: bool = True):
-        """List All Tables in the db"""
+        """
+        List All Tables in the db
+        
+        SHOW == True -> Only prints tables, doesn't return
+        SHOW == False -> Only returns that
+        """
     
         tables = self.execute_query("""       
             SELECT table_name
@@ -43,13 +48,11 @@ class Commander(DBConnection):
                 print("Tables in the database:")
                 for table in tables:
                     print(f"- {table[0]}")
-            else:
-                return [table[0] for table in tables] 
+            return [table[0] for table in tables] 
         else:
             if show:
                 print("No Tables in db")
-            return []  
-    
+            return []
        
     def create_table(self, table_name: str, cols: dict = None):
    
@@ -74,8 +77,17 @@ class Commander(DBConnection):
         except Exception as e:
             print(f"Error creating table '{table_name}': {e}")
         
+    def enter_record(self, table_name: str, values: dict):
         
-
+        try:
+            if not table_name:
+                print(f"Please Enter table_name:str")
+            if not values:
+                print(f"There are no values to be entered in {table_name}")
+        
+        except Exception as e:
+            print(f"Error DELETING Table {table_name}: {e}")
+    
     def delete_table(self, table_name: str):
         """Deletes any given table in the db"""
         try:

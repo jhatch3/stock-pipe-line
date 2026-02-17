@@ -17,6 +17,9 @@ pip install -r requirements.txt
 AIRFLOW_IMAGE_NAME=apache/airflow:2.9.3
 AIRFLOW_UID=1000
 OPENAI_API_KEY=...
+ALPACA_KEY=...
+ALPACA_SECERT=..
+
 "@ | Set-Content -Encoding utf8 .env
 
 Write-Host "Initializing The Database with Tables..."
