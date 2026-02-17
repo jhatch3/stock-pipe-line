@@ -258,19 +258,32 @@ class Commander:
         
         return self.execute_query(query, params, fetch=False)
 
-    def bulk_insert(self, table_name: str, columns: List[str], values_list: List[tuple], upsert: bool = True):
+    def bulk_insert(self, table_name: str, columns: List[str], values_list: List[tuple], 
+                   conflict_columns: List[str] = None, upsert: bool = True):
         """
         Efficiently insert multiple records at once (RACE-CONDITION FREE).
         
+        Args:
+            table_name: Name of the table
+            columns: List of column names
+            values_list: List of tuples, each containing values for one row
+            conflict_columns: Columns that define uniqueness (required for upsert=True)
+            upsert: If True, updates on conflict; if False, ignores conflicts
+            
+        Returns:
+            Number of rows affected
             
         Example:
+            # Insert 1000 stock records at once
             commander.bulk_insert(
                 "stock_data",
                 ["symbol", "timestamp", "open", "high", "low", "close", "volume"],
                 [
                     ("AAPL", "2024-01-01 10:00:00", 150.00, 151.00, 149.00, 150.50, 1000000),
                     ("GOOGL", "2024-01-01 10:00:00", 140.00, 141.00, 139.00, 140.50, 2000000),
-                ]
+                    # ... 998 more records
+                ],
+                conflict_columns=["symbol", "timestamp"]
             )
         """
         _check_ident(table_name)
@@ -280,6 +293,17 @@ class Commander:
         
         if not values_list:
             return 0
+        
+        # If upsert is True, we need conflict_columns
+        if upsert and not conflict_columns:
+            raise ValueError(
+                "bulk_insert with upsert=True requires conflict_columns parameter. "
+                "For example: conflict_columns=['symbol', 'timestamp']"
+            )
+        
+        if conflict_columns:
+            for col in conflict_columns:
+                _check_ident(col)
         
         try:
             with self.get_cursor(commit=True) as cursor:
@@ -292,18 +316,30 @@ class Commander:
                 
                 # Add conflict handling
                 if upsert:
-                    # Update all columns on conflict
-                    updates = sql.SQL(", ").join(
-                        sql.SQL("{col} = EXCLUDED.{col}").format(col=sql.Identifier(c))
-                        for c in columns
+                    # Determine which columns to update (exclude conflict columns)
+                    update_columns = [c for c in columns if c not in conflict_columns]
+                    
+                    # Build ON CONFLICT clause
+                    conflict_clause = sql.SQL("ON CONFLICT ({conflict_cols}) DO UPDATE SET {updates}").format(
+                        conflict_cols=sql.SQL(", ").join(sql.Identifier(c) for c in conflict_columns),
+                        updates=sql.SQL(", ").join(
+                            sql.SQL("{col} = EXCLUDED.{col}").format(col=sql.Identifier(c))
+                            for c in update_columns
+                        )
                     )
-                    query = sql.SQL("{query} ON CONFLICT DO UPDATE SET {updates}").format(
+                    query = sql.SQL("{query} {conflict}").format(
                         query=query,
-                        updates=updates
+                        conflict=conflict_clause
+                    )
+                elif conflict_columns:
+                    # Ignore conflicts on specific columns
+                    query = sql.SQL("{query} ON CONFLICT ({conflict_cols}) DO NOTHING").format(
+                        query=query,
+                        conflict_cols=sql.SQL(", ").join(sql.Identifier(c) for c in conflict_columns)
                     )
                 else:
-                    # Ignore conflicts
-                    query = sql.SQL("{query} ON CONFLICT DO NOTHING").format(query=query)
+                    # No conflict handling - will fail on duplicates
+                    pass
                 
                 # Use executemany for bulk insert (much faster than individual inserts)
                 cursor.executemany(query, values_list)
@@ -312,33 +348,59 @@ class Commander:
         except psycopg2.Error as e:
             print(f"Bulk insert error: {e}")
             return 0
-        
-    def bulk_insert_dicts(self, table_name: str, records: List[dict], upsert: bool = True):
+    
+    def bulk_insert_dicts(self, table_name: str, records: List[dict], 
+                         conflict_columns: List[str] = None, upsert: bool = True):
         """
         Bulk insert from a list of dictionaries (more convenient).
+        
+        Args:
+            table_name: Name of the table
+            records: List of dictionaries, each representing one row
+            conflict_columns: Columns that define uniqueness (required for upsert=True)
+            upsert: If True, updates on conflict; if False, ignores conflicts
+            
+        Returns:
+            Number of rows affected
             
         Example:
-            commander.bulk_insert_dicts("stock_data", [
-                {
-
-                },
-                {
-
-                }
-            ])
+            commander.bulk_insert_dicts(
+                "stock_data",
+                [
+                    {
+                        "symbol": "AAPL",
+                        "timestamp": "2024-01-01 10:00:00",
+                        "open": 150.00,
+                        "high": 151.00,
+                        "low": 149.00,
+                        "close": 150.50,
+                        "volume": 1000000
+                    },
+                    {
+                        "symbol": "GOOGL",
+                        "timestamp": "2024-01-01 10:00:00",
+                        "open": 140.00,
+                        "high": 141.00,
+                        "low": 139.00,
+                        "close": 140.50,
+                        "volume": 2000000
+                    }
+                ],
+                conflict_columns=["symbol", "timestamp"]
+            )
         """
-        if not records or not table_name:
-            print("Error Inserting Bulk dicts data")
+        if not records:
             return 0
         
         # Extract columns from first record
         columns = list(records[0].keys())
         
         # Convert dictionaries to tuples in the same column order
-        values = [tuple(record[col] for col in columns) for record in records]
+        values_list = [tuple(record[col] for col in columns) for record in records]
         
-        return self.bulk_insert(table_name, columns, values, upsert=upsert)
-
+        return self.bulk_insert(table_name, columns, values_list, 
+                               conflict_columns=conflict_columns, upsert=upsert)
+    
     def delete_table(self, table_name: str):
         """
         Delete a table.
