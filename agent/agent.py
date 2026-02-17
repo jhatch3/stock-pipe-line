@@ -8,7 +8,7 @@ from pprint import pprint
 
 # Load variables from .env file
 load_dotenv()
-API_KEY = os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("OPEN_AI_KEY")
 assert API_KEY is not None, "API_KEY must be set in .env file"
 
 class Agent:
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     HARD RULES:
     - Output MUST be valid JSON only. No markdown, no commentary.
     - Do NOT fabricate facts, numbers, quotes, or "latest news". If data is missing, say so explicitly.
-    - ai_summary MUST be <= 4500 characters.
+    - ai_summary MUST be <= 4500 characters, do not feel like you have to fill it all up.
     - Use the provided as_of_datetime as the "last_updated" time.
 
     TASK: Analyze the ticker: {TICKER}.
