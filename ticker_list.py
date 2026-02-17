@@ -34,5 +34,5 @@ TICKERS = [
     "ARKK","XLF","XLK","XLE","XLV","XLY","XLP","XLU","XLI","XLB",
 
     "UBER","LYFT","SNOW","PLTR","SHOP","COIN","ABNB","RIVN","LCID",
-    "BABA","JD","PDD","NTES","TCEHY","ASML","SAP","SONY","TM","HMC"
+    "BABA","JD","PDD","NTES","ASML","SAP","SONY","TM","HMC"
 ]
