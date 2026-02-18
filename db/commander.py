@@ -1,9 +1,10 @@
 import psycopg2
-from psycopg2 import sql, pool
+from psycopg2 import sql
 from psycopg2.extensions import ISOLATION_LEVEL_READ_COMMITTED
 from contextlib import contextmanager
 import re
 from typing import List, Dict, Any, Optional
+
 
 # SQL identifier validation pattern
 _IDENT = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
@@ -37,63 +38,123 @@ def _check_ident(name: str) -> str:
 
 class Commander:
     """
-    Database commander using connection pooling.
-    Handles concurrent access without threads.
+    Database commander: owns its own connection and provides helpers for
+    commits, rollbacks, cursors, and cleanup.
     """
     
-    def __init__(self, min_conn=2, max_conn=10):
+    def __init__(self):
         """
-        Initialize Commander with connection pooling.
+        Initialize Commander with a direct psycopg2 connection.
+        """
+        # Make sure these match docker-compose and env
+        self.DB_PARAMS = {
+            'host': 'localhost',
+            'database': 'stock_db',
+            'user': 'db_user',
+            'password': 'db_password',
+            'port': '5000'
+        }
+        self.conn = self._init_con()
+        self.cur = self._init_cur() if self.conn else None
         
-        Args:
-            min_conn: Minimum number of connections in pool
-            max_conn: Maximum number of connections in pool
-        """
+        if self.cur:
+            print("Database connection established successfully")
+    
+    def _init_con(self):
+        """Create a new database connection."""
         try:
-            # Create connection pool
-            self.pool = pool.SimpleConnectionPool(
-                min_conn,
-                max_conn,
-                host='localhost',
-                database='stock_db',
-                user='db_user',
-                password='db_password',
-                port=5000
-            )
-            
-            if self.pool:
-                print(f"Commander initialized with connection pool ({min_conn}-{max_conn} connections)")
-            else:
-                raise ConnectionError("Failed to create connection pool")
-                
+            conn = psycopg2.connect(**self.DB_PARAMS)
+            print("Connection Successful!!")
+            return conn
         except psycopg2.Error as e:
-            raise ConnectionError(f"Failed to establish database connection pool: {e}")
+            print(f"Database connection error in _init_con(): {e}")
+            return None
+    
+    def _init_cur(self):
+        """Create a cursor for the current connection."""
+        if not self.conn:
+            print("Cannot create cursor: no valid connection")
+            return None
+        
+        try:
+            cur = self.conn.cursor()
+            print("Cursor Connected!!")
+            return cur
+        except psycopg2.Error as e:
+            print(f"Database cursor error in _init_cur(): {e}")
+            return None
+    
+    def is_connected(self):
+        """Check if the connection is still alive."""
+        if not self.conn:
+            return False
+        try:
+            cur = self.conn.cursor()
+            cur.execute('SELECT 1')
+            cur.close()
+            return True
+        except Exception:
+            return False
+    
+    def commit(self):
+        """Commit the current transaction."""
+        if self.conn:
+            try:
+                self.conn.commit()
+            except psycopg2.Error as e:
+                print(f"Commit error: {e}")
+    
+    def rollback(self):
+        """Rollback the current transaction."""
+        if self.conn:
+            try:
+                self.conn.rollback()
+            except psycopg2.Error as e:
+                print(f"Rollback error: {e}")
+    
+    def close(self):
+        """Close cursor and connection."""
+        try:
+            if self.cur:
+                self.cur.close()
+                print("Cursor closed")
+        except Exception as e:
+            print(f"Error closing cursor: {e}")
+        
+        try:
+            if self.conn:
+                self.conn.close()
+                print("Connection closed")
+        except Exception as e:
+            print(f"Error closing connection: {e}")
     
     @contextmanager
     def get_connection(self):
         """
-        Context manager to get a connection from the pool.
-        Automatically returns connection to pool when done.
+        Context manager to get (and lazily re-establish) the base connection.
         
         Usage:
             with commander.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(query)
         """
-        conn = self.pool.getconn()
+        if not self.is_connected():
+            # Attempt to reopen the connection using base class helpers
+            self.conn = self._init_con()
+        
+        if not self.conn:
+            raise ConnectionError("Unable to obtain database connection")
+        
         try:
-            yield conn
+            yield self.conn
         finally:
-            self.pool.putconn(conn)
+            # DBConnection.close() handles cleanup.
+            pass
     
     @contextmanager
     def get_cursor(self, commit=True, isolation_level=ISOLATION_LEVEL_READ_COMMITTED):
         """
         Context manager to get a cursor with automatic transaction handling.
-        
-        Args:
-            commit: Whether to commit after successful execution
-            isolation_level: Transaction isolation level
             
         Usage:
             with commander.get_cursor() as cur:
@@ -107,9 +168,9 @@ class Commander:
             try:
                 yield cursor
                 if commit:
-                    conn.commit()
+                    self.commit()
             except Exception as e:
-                conn.rollback()
+                self.rollback()
                 raise
             finally:
                 cursor.close()
@@ -118,15 +179,7 @@ class Commander:
     def execute_query(self, query, params=None, fetch=True, isolation_level=ISOLATION_LEVEL_READ_COMMITTED):
         """
         Execute a query with automatic connection handling.
-        
-        Args:
-            query: SQL query string or psycopg2.sql.Composed object
-            params: Query parameters
-            fetch: Whether to fetch results (True) or return rowcount (False)
-            isolation_level: Transaction isolation level
-            
-        Returns:
-            Query results (if fetch=True) or row count (if fetch=False)
+
         """
         try:
             with self.get_cursor(commit=True, isolation_level=isolation_level) as cursor:
@@ -263,25 +316,13 @@ class Commander:
         """
         Efficiently insert multiple records at once (RACE-CONDITION FREE).
         
-        Args:
-            table_name: Name of the table
-            columns: List of column names
-            values_list: List of tuples, each containing values for one row
-            conflict_columns: Columns that define uniqueness (required for upsert=True)
-            upsert: If True, updates on conflict; if False, ignores conflicts
-            
-        Returns:
-            Number of rows affected
-            
         Example:
-            # Insert 1000 stock records at once
             commander.bulk_insert(
                 "stock_data",
                 ["symbol", "timestamp", "open", "high", "low", "close", "volume"],
                 [
                     ("AAPL", "2024-01-01 10:00:00", 150.00, 151.00, 149.00, 150.50, 1000000),
                     ("GOOGL", "2024-01-01 10:00:00", 140.00, 141.00, 139.00, 140.50, 2000000),
-                    # ... 998 more records
                 ],
                 conflict_columns=["symbol", "timestamp"]
             )
@@ -353,15 +394,6 @@ class Commander:
                          conflict_columns: List[str] = None, upsert: bool = True):
         """
         Bulk insert from a list of dictionaries (more convenient).
-        
-        Args:
-            table_name: Name of the table
-            records: List of dictionaries, each representing one row
-            conflict_columns: Columns that define uniqueness (required for upsert=True)
-            upsert: If True, updates on conflict; if False, ignores conflicts
-            
-        Returns:
-            Number of rows affected
             
         Example:
             commander.bulk_insert_dicts(
@@ -455,18 +487,15 @@ class Commander:
         return result and result[0][0] if result else False
     
     def close_all_connections(self):
-        """Close all connections in the pool"""
-        if self.pool:
-            self.pool.closeall()
-            print("All connections closed")
+        """Close the shared connection and cursor (from DBConnection)."""
+        self.close()
     
     def __del__(self):
         """Clean up resources"""
         try:
             self.close_all_connections()
-        except:
+        except Exception:
             print("Error Cleaning Up __del__")
-            pass
         print("Commander cleanup complete")
         print("===============================================")
 
