@@ -5,7 +5,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import GetAssetsRequest
 from alpaca.trading.enums import AssetClass, AssetStatus
 
-from ticker_list import TICKERS 
+from data.ticker_list import TICKERS 
 
 load_dotenv()
 ALPACA_KEY = os.getenv("ALPACA_KEY")

@@ -38,19 +38,17 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    cd stock-pipeline
    ```
 
-2. **Start Docker containers - Make Sure Docker is Running** 
-   ```bash
-   docker-compose up
-   ```
-
-3. **Run setup script** (in a new terminal)
+2. **Run setup script** (in a new terminal)
    ```bash
    ./setup.sh
    ```
 
-4. **Set .env variables** 
+3. **Set .env variables** 
    ```
    OPEN_AI_KEY=...
+   ..
+   ..
+   ..
    ```
 
 ### Windows
@@ -61,19 +59,16 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    cd stock-pipeline
    ```
 
-2. **Start Docker containers - Make Sure Docker is Running** 
-   ```powershell
-   docker-compose up
-   ```
-
-3. **Run setup script** (in a new PowerShell terminal)
+2. **Run setup script** (in a new PowerShell terminal)
    ```powershell
    .\setup.ps1
    ```
 
-4. **Set .env variables** 
+3. **Set .env variables** 
    ```
    OPEN_AI_KEY=...
+   ...
+   ...
    ```
 
 ## Usage

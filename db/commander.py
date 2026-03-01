@@ -4,7 +4,18 @@ from psycopg2.extensions import ISOLATION_LEVEL_READ_COMMITTED
 from contextlib import contextmanager
 import re
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+import os 
 
+# Load variables from .env file
+load_dotenv()
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_PORT = os.getenv("DB_PORT")
+
+assert (DB_HOST is not None) or (DB_NAME is not None) or (DB_USER is not None) or (DB_PASSWORD is not None) or (DB_PORT is not None), "DB_VARS must be set in .env file"
 
 # SQL identifier validation pattern
 _IDENT = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
@@ -48,11 +59,11 @@ class Commander:
         """
         # Make sure these match docker-compose and env
         self.DB_PARAMS = {
-            'host': 'localhost',
-            'database': 'stock_db',
-            'user': 'db_user',
-            'password': 'db_password',
-            'port': '5000'
+            'host': DB_HOST,
+            'database': DB_NAME,
+            'user': DB_USER,
+            'password': DB_PASSWORD,
+            'port': DB_PORT
         }
         self.conn = self._init_con()
         self.cur = self._init_cur() if self.conn else None
@@ -131,7 +142,7 @@ class Commander:
     @contextmanager
     def get_connection(self):
         """
-        Context manager to get (and lazily re-establish) the base connection.
+        Context manager to get (and lazily re-establish) the direct connection.
         
         Usage:
             with commander.get_connection() as conn:
@@ -139,7 +150,7 @@ class Commander:
                 cursor.execute(query)
         """
         if not self.is_connected():
-            # Attempt to reopen the connection using base class helpers
+            # Attempt to reopen the connection using local helper
             self.conn = self._init_con()
         
         if not self.conn:
@@ -148,7 +159,7 @@ class Commander:
         try:
             yield self.conn
         finally:
-            # DBConnection.close() handles cleanup.
+            # close() handles cleanup at shutdown.
             pass
     
     @contextmanager
@@ -273,16 +284,8 @@ class Commander:
             print(f"Error creating table '{table_name}': {e}")
     
     def enter_record(self, table_name: str, values: dict):
-        """
-        Insert a record into a table (RACE-CONDITION FREE with UPSERT).
-        
-        Args:
-            table_name: Name of the table
-            values: Dictionary of column_name: value
-            
-        Returns:
-            Number of rows affected
-        """
+        """ Insert a record into a table (RACE-CONDITION FREE with UPSERT) """
+
         _check_ident(table_name)
         
         if not values:
@@ -295,7 +298,7 @@ class Commander:
         cols = list(values.keys())
         params = [values[c] for c in cols]
         
-        # Build UPSERT query (INSERT ... ON CONFLICT DO UPDATE)
+        # Build query (INSERT ... ON CONFLICT DO UPDATE)
         query = sql.SQL(
             "INSERT INTO {table} ({cols}) VALUES ({ph}) "
             "ON CONFLICT DO UPDATE SET {updates}"
@@ -434,12 +437,7 @@ class Commander:
                                conflict_columns=conflict_columns, upsert=upsert)
     
     def delete_table(self, table_name: str):
-        """
-        Delete a table.
-        
-        Args:
-            table_name: Name of the table to delete
-        """
+        """ Delete a given table """
         _check_ident(table_name)
         
         try:
@@ -453,9 +451,7 @@ class Commander:
             print(f"Error deleting table '{table_name}': {e}")
     
     def delete_all_tables(self):
-        """
-        Delete all tables in the database - use with caution!
-        """
+        """ Delete all tables in the database - use with caution! """
         tables = self.list_tables(show=False)
         if tables:
             for table in tables:
@@ -464,15 +460,7 @@ class Commander:
             print("No tables to delete")
     
     def table_exists(self, table_name: str) -> bool:
-        """
-        Check if a table exists.
-        
-        Args:
-            table_name: Name of the table to check
-            
-        Returns:
-            True if table exists, False otherwise
-        """
+        """ Check if a table exists """
         _check_ident(table_name)
         
         query = sql.SQL("""
@@ -487,7 +475,7 @@ class Commander:
         return result and result[0][0] if result else False
     
     def close_all_connections(self):
-        """Close the shared connection and cursor (from DBConnection)."""
+        """Close the connection and cursor."""
         self.close()
     
     def __del__(self):
@@ -503,7 +491,7 @@ class Commander:
 if __name__ == "__main__":
     print("===============================================")
     
-    commander = Commander(min_conn=2, max_conn=10)
+    commander = Commander()
     
     print("===============================================")
     commander.list_tables()
@@ -540,28 +528,11 @@ if __name__ == "__main__":
     }
     commander.create_table("stock_ai_summary", ai_cols)
     
-    report_cols = {
-        'id': 'SERIAL PRIMARY KEY',
-        'symbol': 'VARCHAR(10) NOT NULL UNIQUE',
-        'report_type': 'VARCHAR(25)',
-        'report_content': 'VARCHAR(4500)',
-        'last_updated': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-    }
-    commander.create_table("stock_reports", report_cols)
     
     print("===============================================")
     commander.list_tables()
     print("===============================================")
     
-    # Example: Safe insert with upsert
-    print("\nExample: Using enter_record (race-condition free)")
-    commander.enter_record(
-        "stock_indicators",
-        {
-            "symbol": "AAPL",
-            "indicator_type": "RSI"
-        }
-    )
     
     # Query data
     data = commander.execute_query("SELECT * FROM stock_indicators")
@@ -571,3 +542,5 @@ if __name__ == "__main__":
     # Uncomment to delete all tables
     commander.delete_all_tables()
     print("===============================================")
+
+

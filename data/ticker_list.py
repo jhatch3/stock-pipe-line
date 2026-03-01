@@ -19,7 +19,7 @@ TICKERS = [
     "ROST","TJX","DG","DLTR","EBAY","ETSY","ULTA","ORLY","AZO","BBY",
 
     "PG","KO","PEP","WMT","COST","PM","MO","CL","KMB",
-    "GIS","HSY","SJM","KR","EL","ADM","KHC","STZ","BF.B","CHD",
+    "GIS","HSY","SJM","KR","EL","ADM","KHC","STZ","CHD",
 
     "NEE","DUK","SO","D","AEP","EXC","XEL","ED","PEG","EIX",
 

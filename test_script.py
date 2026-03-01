@@ -1,8 +1,7 @@
-from db.DBConnection import DBConnection
 from db.commander import Commander
 from agent.agent import Agent
 from data.stock import process_stock_data
-from ticker_list import TICKERS
+from data.ticker_list import TICKERS
 
 from pprint import pprint
 from time import sleep 
@@ -59,18 +58,17 @@ async def main():
     data = []
     print("=" * 100)
     
-    for ticker in TICKERS:
-        print(f"\nProcessing {ticker} Data")
-        start_dt = [2026, 1, 1]    
-        end_dt   = [2026, 1, 5]     
-        inter = TimeFrame.Hour
+    for ticker in TICKERS[:2]:
+        print(f"\nProcessing {ticker} Data")     
 
         rows = process_stock_data(
             ticker,
-            start_date=start_dt,
-            end_date=end_dt,
-            interval=inter,
+            start_date=[2025, 1, 1],
+            end_date=[2026, 1, 5],
+            interval=TimeFrame.Minute
         )
+
+
 
         data.extend(rows)
 
@@ -80,18 +78,18 @@ async def main():
     
     commander.bulk_insert_dicts("stock_data", data,  conflict_columns=["symbol", "timestamp"])
 
+    print(f"\nGetting records in stock_data Table By Symbol\n")
     data = commander.execute_query("""
         SELECT symbol, AVG(open) AS avg_open FROM stock_data GROUP BY symbol ORDER BY symbol;
         """)
     
-    print(f"\nGetting records in stock_data Table By Symbol\n")
     for record in data:
         print(f"    - Symbol {record[0]} | Average Open ${round(record[1], 2)} ")
     
 
     print("\n===============================================")
     #Uncomment to delete all tables
-    commander.delete_all_tables()
+    #commander.delete_all_tables()
     print("===============================================")
     
 

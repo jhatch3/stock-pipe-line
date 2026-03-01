@@ -1,10 +1,10 @@
 from test.ticker_list_check import validate_tickers
-from ticker_list import TICKERS 
+from data.ticker_list import TICKERS 
 
 
 
 
-
+s
 if __name__ == "__main__":
     print(f"{'=' * 25} Running Master Test {'=' * 25}")
 
