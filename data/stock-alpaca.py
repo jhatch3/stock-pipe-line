@@ -119,6 +119,7 @@ def pull_data(
         end=end,
     )
     bars = client.get_stock_bars(req)
+    logger.info("[Pulled raw] - [Interval : %s] %d bars for %s", interval.value, len(bars), ticker)
     return bars.model_dump()
 
 

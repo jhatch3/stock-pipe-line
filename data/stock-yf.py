@@ -107,6 +107,9 @@ def pull_data(ticker: str, interval: str = "1d") -> pd.DataFrame:
         prepost=False,
         threads=False,
     )
+
+    logger.info("%s |  Interval : %s | Step 1 | Task: Pulled Raw Data | %d bars", ticker, interval, len(df))
+
     return df
 
 
@@ -148,7 +151,7 @@ def store_raw(ticker: str, raw_df: pd.DataFrame, interval: str) -> None:
         "last_updated": datetime.now(timezone.utc),
     }
     commander.bulk_insert_dicts(RAW_TABLE, [record], conflict_columns=None, upsert=False)
-    logger.info("[Stored raw] - [Interval : %s] payload for %s (%d rows)", interval, ticker, len(rows))
+    logger.info("%s |  Interval : %s | Step 2 | Task: Stored Raw Data | %d rows", ticker, interval, len(rows))
 
 
 def clean(ticker: str, raw_df: pd.DataFrame, interval: str):
@@ -186,6 +189,8 @@ def clean(ticker: str, raw_df: pd.DataFrame, interval: str):
             "volume": int(row.volume),
             "last_updated": fetched_at,     # datetime w/ tz
         })
+
+    logger.info("%s |  Interval : %s | Step 3 | Task: Cleaned Data | %d clean rows", ticker, interval, len(rows))
     return rows
 
 
@@ -202,7 +207,7 @@ def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
         conflict_columns=["symbol", "interval", "timestamp"],
         upsert=True,
     )
-    logger.info("[Store Clean] - [Interval : %s] Upserted %d clean rows for %s", cleaned_list[0]["interval"], len(cleaned_list), ticker)
+    logger.info("%s |  Interval : %s | Step 4 | Task: Stored Cleaned Data | Upserted %d clean rows", ticker, cleaned_list[0]["interval"], len(cleaned_list))
 
 
 # --- Orchestrator (keeps legacy signature) ----------------------------------
@@ -212,7 +217,6 @@ def process_stock_data(
     end_date=None,    # ignored for max history
     interval: str = "1d",
 ):
-    _ensure_tables()
     raw_df = pull_data(ticker, interval=interval)
     store_raw(ticker, raw_df, interval)
     cleaned = clean(ticker, raw_df, interval)
@@ -220,19 +224,51 @@ def process_stock_data(
     return cleaned
 
 
-if __name__ == "__main__":
-    commander.delete_all_tables()
-    _tables_ready = False  # reset to force fresh creation
+def populate_all_tickers():
     _ensure_tables()
-    # Default to a small subset to keep runtime manageable; expand slice as needed.
-    for t in TICKERS:
+    logger.info("Populating all the Historical Data for Each Ticker: %d total", len(TICKERS))
+    for ticker in TICKERS:
+        logger.info("Processing %s's Historical data", ticker)
+        process_stock_data(ticker, interval="1d")
+        process_stock_data(ticker, interval="1h")
+        process_stock_data(ticker, interval="30m")
+        process_stock_data(ticker, interval="1m")
 
-        data_one_d = process_stock_data(t, interval="1d")
-        data_one_h = process_stock_data(t, interval="1h")
-        data_thirty_m = process_stock_data(t, interval="30m")
-        data_one_m = process_stock_data(t, interval="1m")
 
-        # logger.info(
-        #     "[Processing Stocks Done] - %s rows -> 1d: %d | 1h: %d | 30m: %d | 1m: %d",
-        #     t, len(data_one_d), len(data_one_h), len(data_thirty_m), len(data_one_m)
-        # )
+def refill_all_tickers(look_back_amount: int = 3):
+    """Refill all tickers with historical data for the last `look_back_amount` days."""
+    if look_back_amount <= 0:
+        logger.warning("look_back_amount must be positive. No refill performed.")
+        return
+    
+    start_day = datetime.now(timezone.utc) - pd.Timedelta(days=look_back_amount)
+    end_day = datetime.now(timezone.utc)
+    
+    _ensure_tables()
+    logger.info("Populating all the Historical Data for Each Ticker: %d total", len(TICKERS))
+    for ticker in TICKERS:
+        logger.info("Processing %s | Start: %s | End: %s", ticker, start_day, end_day)
+        process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1d")
+        process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1h")
+        process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="30m")
+        process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1m")
+
+if __name__ == "__main__":
+    time_before = datetime.now(timezone.utc)
+    logger.info("Starting Yahoo Finance ingestion at %s", time_before.isoformat())
+    commander.delete_all_tables()
+    tables_ready = False
+
+    # ==== Uncomment one of the following lines to either populate all tickers or refill the last 3 days of data for all tickers ====
+    # Populate all tickers with full historical data (this may take a long time) -> When app is first loaded
+    # refill_all_tickers(look_back_amount=3) -> Refill last 3 days of data for all tickers (this is faster) -> When app is already loaded
+
+    populate_all_tickers()
+    #refill_all_tickers(look_back_amount=30) 
+    
+    time_after = datetime.now(timezone.utc)
+    logger.info("Finished Yahoo Finance ingestion at %s", time_after.isoformat())
+    logger.info("Total time taken: %s minutes", (time_after - time_before).total_seconds() / 60.0)
+
+    logger.info("Total rows in %s: %d", RAW_TABLE, commander.count_rows(RAW_TABLE))
+    logger.info("Total rows in %s: %d", CLEAN_TABLE, commander.count_rows(CLEAN_TABLE))

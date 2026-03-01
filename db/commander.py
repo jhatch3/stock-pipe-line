@@ -206,6 +206,18 @@ class Commander:
             print(f"Query execution error: {e}")
             return None
     
+    def count_rows(self, table_name: str) -> int:
+        """Count the number of rows in a given table."""
+        _check_ident(table_name)
+        
+        query = sql.SQL("SELECT COUNT(*) FROM {table}").format(
+            table=sql.Identifier(table_name)
+        )
+        
+        result = self.execute_query(query)
+        return result[0][0] if result else 0
+    
+
     def list_tables(self, show: bool = True):
         """
         List all tables in the database.
@@ -496,51 +508,7 @@ if __name__ == "__main__":
     print("===============================================")
     commander.list_tables()
     print("===============================================")
-    
-    # Define table schemas
-    stock_cols = {
-        "id": "SERIAL PRIMARY KEY",
-        "symbol": "VARCHAR(10) NOT NULL",
-        "timestamp": "TIMESTAMPTZ NOT NULL",
-        "open": "DECIMAL(12,4) NOT NULL",
-        "high": "DECIMAL(12,4) NOT NULL",
-        "low": "DECIMAL(12,4) NOT NULL",
-        "close": "DECIMAL(12,4) NOT NULL",
-        "volume": "BIGINT NOT NULL",
-        "last_updated": "TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
-        "UNIQUE (symbol, timestamp)": ""
-    }
-    commander.create_table("stock_data", stock_cols)
-    
-    indicators_cols = {
-        'id': 'SERIAL PRIMARY KEY',
-        'symbol': 'VARCHAR(10) NOT NULL UNIQUE',
-        'indicator_type': 'VARCHAR(25)',
-        'last_updated': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-    }
-    commander.create_table("stock_indicators", indicators_cols)
-    
-    ai_cols = {
-        'id': 'SERIAL PRIMARY KEY',
-        'symbol': 'VARCHAR(10) NOT NULL UNIQUE',
-        'ai_summary': 'VARCHAR(4500)',
-        'last_updated': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-    }
-    commander.create_table("stock_ai_summary", ai_cols)
-    
-    
-    print("===============================================")
-    commander.list_tables()
-    print("===============================================")
-    
-    
-    # Query data
-    data = commander.execute_query("SELECT * FROM stock_indicators")
-    print(data)
-    
-    print("===============================================")
-    # Uncomment to delete all tables
     commander.delete_all_tables()
-    print("===============================================")
+    commander.list_tables()
 
 
