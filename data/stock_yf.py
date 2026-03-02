@@ -18,6 +18,7 @@ from pathlib import Path
 import json
 import logging
 import dotenv, os 
+import asyncio 
 
 from db.runtime import get_commander
 
@@ -279,25 +280,54 @@ def refill_one_ticker(ticker: str, look_back_amount: int = 3):
     process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="30m")
     process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1m")
 
-if __name__ == "__main__":
-    time_before = datetime.now(timezone.utc)
-    logger.info("Starting Yahoo Finance ingestion at %s", time_before.isoformat())
-    #commander.delete_all_tables()
-    tables_ready = False
 
-    # ==== Uncomment one of the following lines to either populate all tickers or refill the last 3 days of data for all tickers ====
-    # Populate all tickers with full historical data (this may take a long time) -> When app is first loaded
-    # refill_all_tickers(look_back_amount=3) -> Refill last 3 days of data for all tickers (this is faster) -> When app is already loaded
+async def main(args: List[str]):
+    """ Usage: 
+        python stock_yf.py --populate <TICKER>
+        python stock_yf.py --refill <TICKER>
+        python stock_yf.py --populate --all
+        python stock_yf.py --refill --all
+    """
+    if len(args) < 2:
+        logger.warning(" USAGE WARNING: ")
+        logger.warning("      --- python stock_yf.py --populate <TICKER>")
+        logger.warning("      --- python stock_yf.py --refill <TICKER>")
+        logger.warning("      --- python stock_yf.py --populate --all")
+        logger.warning("      --- python stock_yf.py --refill --all")
 
-    #populate_all_tickers()
-    #refill_one_ticker(ticker="AAPL", look_back_amount=50) 
+    else:
+        if "--populate" in args:
+            if "--all" in args:
+                populate_all_tickers()
+            else:
+                ticker_index = args.index("--populate") + 1
+                if ticker_index < len(args):
+                    ticker = args[ticker_index]
+                    populate_one_ticker(ticker)
+                else:
+                    logger.error("No ticker specified for --populate command.")
+
+        elif "--refill" in args:
+            if "--all" in args:
+                refill_all_tickers()
+            else:
+                ticker_index = args.index("--refill") + 1
+                if ticker_index < len(args):
+                    ticker = args[ticker_index]
+                    refill_one_ticker(ticker)
+                else:
+                    logger.error("No ticker specified for --refill command.")
+        else:
+            logger.warning("Unknown command line arguments provided. Defaulting to full ingestion.")
+        
     
-    time_after = datetime.now(timezone.utc)
-    logger.info("Finished Yahoo Finance ingestion at %s", time_after.isoformat())
-    logger.info("Total time taken: %s minutes", (time_after - time_before).total_seconds() / 60.0)
+if __name__ == "__main__":
 
-    try:
-        logger.info("Total rows in %s: %d", RAW_TABLE, commander.count_rows(RAW_TABLE))
-        #logger.info("Total rows in %s: %d", CLEAN_TABLE, commander.count_rows(CLEAN_TABLE))
-    except Exception as e:
-        logger.warning("Could not fetch row counts: %s", e)
+    """ Usage: 
+        python stock_yf.py --populate <TICKER>
+        python stock_yf.py --refill <TICKER>
+        python stock_yf.py --populate --all
+        python stock_yf.py --refill --all
+    """
+    asyncio.run(main(args=sys.argv))
+
