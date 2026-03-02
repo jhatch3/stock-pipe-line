@@ -7,7 +7,7 @@ Yahoo Finance ingestion with a four-step pipeline:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 from typing import Iterable, List, Dict, Any
 from zoneinfo import ZoneInfo
 
@@ -17,20 +17,25 @@ import sys
 from pathlib import Path
 import json
 import logging
+import dotenv, os 
 
-# Ensure project root on path so we can import db.commander when run as script
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+from db.runtime import get_commander
 
-from db.commander import Commander
-from ticker_list import TICKERS
+    
+commander = get_commander() 
+
+try:
+    from data.ticker_list import TICKERS  # when run as script
+except ImportError:
+    from .ticker_list import TICKERS      # when imported as package
+
+dotenv.load_dotenv()
+
+RAW_TABLE = os.getenv("RAW_TABLE", "stock_raw_data_yf")
+CLEAN_TABLE = os.getenv("CLEAN_TABLE", "stock_clean_data_yf")
+TICKER_LIMIT = int(os.getenv("YF_TICKER_LIMIT", "0"))  # 0 = no limit
 
 # --- Config -----------------------------------------------------------------
-RAW_TABLE = "stock_raw_data_yf"
-CLEAN_TABLE = "stock_clean_data_yf"
-
-commander = Commander()
 _tables_ready = False
 
 logging.basicConfig(
@@ -49,50 +54,34 @@ def _fmt_pacific(ts: datetime) -> str:
     return local.strftime("%Y-%m-%d %H:%M:%S") + f"{offset:+03d}"
 
 
-def _ensure_tables():
+def _serialize_value(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, list):
+        return [_serialize_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _serialize_value(v) for k, v in value.items()}
+    return value
+
+
+def _serialize_rows(rows):
+    return [_serialize_value(r) for r in rows]
+
+
+def _ensure_tables() -> None:
+    """
+    Supabase schema must be created ahead of time. This helper is kept for
+    backward compatibility and simply logs once.
+    """
     global _tables_ready
     if _tables_ready:
         return
-
-    raw_cols = {
-        "id": "SERIAL PRIMARY KEY",
-        "symbol": "VARCHAR(10) NOT NULL",
-        "payload": "JSONB NOT NULL",
-        "interval": "VARCHAR(10) NOT NULL",
-        "last_updated": "TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
-    }
-
-    clean_cols = {
-        "id": "SERIAL PRIMARY KEY",
-        "symbol": "VARCHAR(10) NOT NULL",
-        "interval": "VARCHAR(10) NOT NULL",
-        "timestamp": "TIMESTAMPTZ NOT NULL",
-        "open": "DECIMAL(12,4) NOT NULL",
-        "high": "DECIMAL(12,4) NOT NULL",
-        "low": "DECIMAL(12,4) NOT NULL",
-        "close": "DECIMAL(12,4) NOT NULL",
-        "volume": "BIGINT NOT NULL",
-        "last_updated": "TIMESTAMPTZ NOT NULL",
-    }
-
-    commander.create_table(RAW_TABLE, raw_cols, if_not_exists=True)
-    commander.create_table(CLEAN_TABLE, clean_cols, if_not_exists=True)
-
-    commander.execute_query(
-        f'DROP INDEX IF EXISTS {CLEAN_TABLE}_sym_int_ts_idx;',
-        fetch=False
+    logger.info(
+        "Supabase mode: expecting existing tables %s and %s; no DDL executed.",
+        RAW_TABLE,
+        CLEAN_TABLE,
     )
-
-    commander.execute_query(
-        f'''
-        CREATE UNIQUE INDEX IF NOT EXISTS {CLEAN_TABLE}_sym_int_ts_idx
-        ON {CLEAN_TABLE} (symbol, interval, "timestamp");
-        ''',
-        fetch=False
-    )
-
     _tables_ready = True
-    logger.info("Ensured tables: %s (raw), %s (clean)", RAW_TABLE, CLEAN_TABLE)
 
 
 # --- Pipeline steps ---------------------------------------------------------
@@ -150,7 +139,9 @@ def store_raw(ticker: str, raw_df: pd.DataFrame, interval: str) -> None:
         "interval": interval,
         "last_updated": datetime.now(timezone.utc),
     }
-    commander.bulk_insert_dicts(RAW_TABLE, [record], conflict_columns=None, upsert=False)
+    commander.bulk_insert_dicts(
+        RAW_TABLE, _serialize_rows([record]), conflict_columns=None, upsert=False
+    )
     logger.info("%s |  Interval : %s | Step 2 | Task: Stored Raw Data | %d rows", ticker, interval, len(rows))
 
 
@@ -200,14 +191,25 @@ def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
     if not cleaned_list:
         logger.info("No clean rows to upsert for %s", ticker)
         return
+    logger.info(
+        "%s | Interval: %s | Step 3.5 | Store Cleaned Data | %d clean rows",
+        ticker,
+        cleaned_list[0]["interval"],
+        len(cleaned_list),
+    )
 
     commander.bulk_insert_dicts(
         CLEAN_TABLE,
-        cleaned_list,
+        _serialize_rows(cleaned_list),
         conflict_columns=["symbol", "interval", "timestamp"],
         upsert=True,
     )
-    logger.info("%s |  Interval : %s | Step 4 | Task: Stored Cleaned Data | Upserted %d clean rows", ticker, cleaned_list[0]["interval"], len(cleaned_list))
+    logger.info(
+        "%s | Interval: %s | Step 4 | Stored Cleaned Data | Upserted %d rows",
+        ticker,
+        cleaned_list[0]["interval"],
+        len(cleaned_list),
+    )
 
 
 # --- Orchestrator (keeps legacy signature) ----------------------------------
@@ -234,6 +236,14 @@ def populate_all_tickers():
         process_stock_data(ticker, interval="30m")
         process_stock_data(ticker, interval="1m")
 
+def populate_one_ticker(ticker: str):
+    _ensure_tables()
+    logger.info("Populating the Historical Data for Ticker: %s", ticker)
+    process_stock_data(ticker, interval="1d")
+    process_stock_data(ticker, interval="1h")
+    process_stock_data(ticker, interval="30m")
+    process_stock_data(ticker, interval="1m")
+
 
 def refill_all_tickers(look_back_amount: int = 3):
     """Refill all tickers with historical data for the last `look_back_amount` days."""
@@ -253,22 +263,41 @@ def refill_all_tickers(look_back_amount: int = 3):
         process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="30m")
         process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1m")
 
+def refill_one_ticker(ticker: str, look_back_amount: int = 3):
+    """Refill a single ticker with historical data for the last `look_back_amount` days."""
+    if look_back_amount <= 0:
+        logger.warning("look_back_amount must be positive. No refill performed.")
+        return
+    
+    start_day = datetime.now(timezone.utc) - pd.Timedelta(days=look_back_amount)
+    end_day = datetime.now(timezone.utc)
+    
+    _ensure_tables()
+    logger.info("Refilling the Historical Data for Ticker: %s | Start: %s | End: %s", ticker, start_day, end_day)
+    process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1d")
+    process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1h")
+    process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="30m")
+    process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1m")
+
 if __name__ == "__main__":
     time_before = datetime.now(timezone.utc)
     logger.info("Starting Yahoo Finance ingestion at %s", time_before.isoformat())
-    commander.delete_all_tables()
+    #commander.delete_all_tables()
     tables_ready = False
 
     # ==== Uncomment one of the following lines to either populate all tickers or refill the last 3 days of data for all tickers ====
     # Populate all tickers with full historical data (this may take a long time) -> When app is first loaded
     # refill_all_tickers(look_back_amount=3) -> Refill last 3 days of data for all tickers (this is faster) -> When app is already loaded
 
-    populate_all_tickers()
-    #refill_all_tickers(look_back_amount=30) 
+    #populate_all_tickers()
+    #refill_one_ticker(ticker="AAPL", look_back_amount=50) 
     
     time_after = datetime.now(timezone.utc)
     logger.info("Finished Yahoo Finance ingestion at %s", time_after.isoformat())
     logger.info("Total time taken: %s minutes", (time_after - time_before).total_seconds() / 60.0)
 
-    logger.info("Total rows in %s: %d", RAW_TABLE, commander.count_rows(RAW_TABLE))
-    logger.info("Total rows in %s: %d", CLEAN_TABLE, commander.count_rows(CLEAN_TABLE))
+    try:
+        logger.info("Total rows in %s: %d", RAW_TABLE, commander.count_rows(RAW_TABLE))
+        #logger.info("Total rows in %s: %d", CLEAN_TABLE, commander.count_rows(CLEAN_TABLE))
+    except Exception as e:
+        logger.warning("Could not fetch row counts: %s", e)

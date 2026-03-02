@@ -101,6 +101,7 @@ Configuration files are located in the `config/` directory:
 
 - `config.yml` - Main configuration file
 - `.env` - Environment variables (API keys, credentials)
+- `SUPABASE_DB_URL` (optional) - Postgres URL for Supabase (e.g., postgres://user:pass@host:5432/db). If set, it overrides local DB_* settings.
 
 
 ### Example Configuration
@@ -158,5 +159,3 @@ docker-compose up --build
 chmod +x setup.sh
 sudo chown -R $USER:$USER data/ logs/
 ```
-
-

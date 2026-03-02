@@ -38,9 +38,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
-log = logging.getLogger("alpaca_stock_ws")
+logger = logging.getLogger("alpaca_stock_ws")
 
-# ── State helpers ─────────────────────────────────────────────────────────────
+# ── helpers ─────────────────────────────────────────────────────────────
 
 def fresh_state() -> dict:
     return {
@@ -99,20 +99,20 @@ def fmt_quote(sym: str, st: dict) -> str:
 
 async def main():
     state = {sym: fresh_state() for sym in SYMS}
-    log.info("Connecting to %s  |  symbols: %s", URL, SYMS)
+    logger.info("Connecting to %s  |  symbols: %s", URL, SYMS)
 
     async with websockets.connect(URL, ping_interval=20, ping_timeout=10) as ws:
 
         # 1. Connected banner
         banner = json.loads(await ws.recv())
-        log.info("SYS %s", banner)
+        logger.info("SYS %s", banner)
 
         # 2. Authenticate
         await ws.send(json.dumps({"action": "auth", "key": KEY, "secret": SECRET}))
         while True:
             msgs = json.loads(await ws.recv())
             msgs = msgs if isinstance(msgs, list) else [msgs]
-            log.info("AUTH %s", msgs)
+            logger.info("AUTH %s", msgs)
             if any(m.get("T") == "success" and m.get("msg") == "authenticated" for m in msgs):
                 break
             if any(m.get("T") == "error" for m in msgs):
@@ -131,7 +131,7 @@ async def main():
         }
         await ws.send(json.dumps(sub))
         ack = json.loads(await ws.recv())
-        log.info("SUB ack: %s", ack)
+        logger.info("SUB ack: %s", ack)
 
         # 4. Event loop
         async for raw in ws:
@@ -144,7 +144,7 @@ async def main():
 
                 # ── control messages (no symbol) ──────────────────────────
                 if T in ("subscription", "success", "error") and sym is None:
-                    log.info("SYS %s", m)
+                    logger.info("SYS %s", m)
                     if T == "error":
                         raise RuntimeError(f"Stream error: {m}")
                     continue
@@ -180,15 +180,15 @@ async def main():
                         "t": m.get("t"),
                     }
                     if T == "b":
-                        log.info(
+                        logger.info(
                             "MINUTE BAR  %s  o=%.4f h=%.4f l=%.4f c=%.4f v=%s  t=%s",
                             sym, m["o"], m["h"], m["l"], m["c"], m["v"], m["t"],
                         )
 
-                # ── throttled display ─────────────────────────────────────
+                
                 now = time.monotonic()
                 if now - st["last_print"] >= PRINT_EVERY:
-                    log.info("\n%s", fmt_quote(sym, st))
+                    logger.info("\n%s", fmt_quote(sym, st))
                     st["last_print"] = now
 
 

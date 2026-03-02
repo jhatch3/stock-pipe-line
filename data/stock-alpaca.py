@@ -11,7 +11,7 @@ import json
 import os
 from pprint import pprint
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 from pathlib import Path
 from typing import Iterable, List, Dict, Any
 
@@ -30,7 +30,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from db.commander import Commander
-from ticker_list import TICKERS
+from data.ticker_list import TICKERS
 
 # --- Config -----------------------------------------------------------------
 RAW_TABLE = "stock_raw_data_alpaca"
@@ -63,45 +63,31 @@ def _fmt_pacific(ts: datetime) -> str:
     return local.strftime("%Y-%m-%d %H:%M:%S") + f"{offset:+03d}"
 
 
+def _serialize_value(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, list):
+        return [_serialize_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _serialize_value(v) for k, v in value.items()}
+    return value
+
+
+def _serialize_rows(rows):
+    return [_serialize_value(r) for r in rows]
+
+
 def _ensure_tables():
     """Create raw and clean tables if missing."""
     global _tables_ready
     if _tables_ready:
         return
-
-    raw_cols = {
-        "id": "SERIAL PRIMARY KEY",
-        "symbol": "VARCHAR(10) NOT NULL",
-        "interval": "VARCHAR(10) NOT NULL",
-        "payload": "JSONB NOT NULL",
-        "last_updated": "TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP"
-    }
-    clean_cols = {
-        "id": "SERIAL PRIMARY KEY",
-        "symbol": "VARCHAR(10) NOT NULL",
-        "interval": "VARCHAR(10) NOT NULL",
-        "timestamp": "TIMESTAMPTZ NOT NULL",
-        "open": "DECIMAL(12,4) NOT NULL",
-        "high": "DECIMAL(12,4) NOT NULL",
-        "low": "DECIMAL(12,4) NOT NULL",
-        "close": "DECIMAL(12,4) NOT NULL",
-        "volume": "BIGINT NOT NULL",
-        "last_updated": "TIMESTAMPTZ NOT NULL",
-        "UNIQUE (symbol, interval, timestamp)": "",
-    }
-    commander.create_table(RAW_TABLE, raw_cols, if_not_exists=True)
-    commander.create_table(CLEAN_TABLE, clean_cols, if_not_exists=True)
-
-    commander.execute_query(
-        f'''
-        CREATE UNIQUE INDEX IF NOT EXISTS {CLEAN_TABLE}_sym_int_ts_idx
-        ON {CLEAN_TABLE} (symbol, interval, "timestamp");
-        ''',
-        fetch=False
+    logger.info(
+        "Supabase mode: expecting existing tables %s (raw) and %s (clean); no DDL executed.",
+        RAW_TABLE,
+        CLEAN_TABLE,
     )
-
     _tables_ready = True
-    logger.info("Ensured tables: %s (raw), %s (clean)", RAW_TABLE, CLEAN_TABLE)
 
 
 # --- Pipeline steps ---------------------------------------------------------
@@ -131,7 +117,9 @@ def store_raw(ticker: str, raw: Dict[str, Any], interval: TimeFrame) -> None:
         "payload": json.dumps(raw, default=str),
         "last_updated": datetime.now(timezone.utc)
     }
-    commander.bulk_insert_dicts(RAW_TABLE, [record], conflict_columns=None, upsert=False)
+    commander.bulk_insert_dicts(
+        RAW_TABLE, _serialize_rows([record]), conflict_columns=None, upsert=False
+    )
     logger.info("[Stored raw] - [Interval : %s] payload for %s", record["interval"], ticker)
 
 
@@ -171,7 +159,7 @@ def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
 
     commander.bulk_insert_dicts(
         CLEAN_TABLE,
-        cleaned_list,
+        _serialize_rows(cleaned_list),
         conflict_columns=["symbol", "interval", "timestamp"],
         upsert=True,
     )
