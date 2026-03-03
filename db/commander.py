@@ -63,6 +63,24 @@ class Commander:
         logger.info("Supabase client initialized for %s", url)
 
     # ------------------------------------------------------------------ helpers
+
+    def _store_response(self, response: dict):
+        """Store the agent response in the stock_ai_data table."""
+        record = {
+            "name": response.get("commander_name"),
+            "ticker": response.get("ticker"),
+            "summary": response.get("summary", ""),
+            "sources": response.get("sources", []),
+            "created_at": response.get("as_of_utc"),
+        }
+        count = self._upsert(
+            table_name="stock_ai_data",
+            records=[record],
+            conflict_columns=["ticker", "name", "created_at"],
+            upsert=True,
+        )
+        logger.info("Stored response for %s -> %d rows", record["ticker"], count)
+
     def _upsert(
         self,
         table_name: str,
