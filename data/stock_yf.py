@@ -192,12 +192,6 @@ def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
     if not cleaned_list:
         logger.info("No clean rows to upsert for %s", ticker)
         return
-    logger.info(
-        "%s | Interval: %s | Step 3.5 | Store Cleaned Data | %d clean rows",
-        ticker,
-        cleaned_list[0]["interval"],
-        len(cleaned_list),
-    )
 
     commander.bulk_insert_dicts(
         CLEAN_TABLE,
