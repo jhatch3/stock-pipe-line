@@ -71,6 +71,9 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    ...
    ```
 
+## Database Schema
+![db_schema_png](public/DB_SCHEMA.png)
+
 ## Usage
 
 ### Starting the Pipeline
