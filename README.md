@@ -91,7 +91,7 @@ This starts all services in detached mode.
 ```
 
 ## Database Schema
-![DB_SCHEMA_SVG](public\supabase-schema-mtrtxhzcctmbsyrljkwl.svg)
+![DB_SCHEMA_SVG](public\supabase-schema-mtrtxhzcctmbsyrljkwl (6).png)
 
 ### Running Specific Analysis
 
