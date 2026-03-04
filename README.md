@@ -40,7 +40,7 @@ Stock Pipeline is a containerized ELT system that ingests real-time and historic
 
 ## Data Sources
 
-The pipeline uses yFiance for historical data, Alapaca for live websocket data and new data for the main data sources:
+The pipeline uses yFiance for historical ticker data, and Alapaca for live websocket data and neww data.
 
 
 ## Database Schema
