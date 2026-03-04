@@ -1,19 +1,24 @@
 # Stock Pipeline - Data Pipeline For Stock Analysis
 
-A robust, Docker-based data pipeline for collecting, processing, and analyzing stock market data.
+A robust, Docker-based data pipeline for collecting, cleaning, and featurizing market + news data, with AI-generated ticker summaries.
 
 ## Overview
 
-Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed to automate the collection and analysis of stock market data. Built with Python and Docker, it provides a scalable solution for financial data processing and analysis.
+Stock Pipeline is a containerized ELT system that ingests real-time and historical market data (OHLCV, trades, quotes) plus ticker news, then organizes it into a Supabase Postgres medallion schema: **raw → clean → features → AI**. It supports replayable backfills, conflict-aware upserts, and feature generation for downstream screening, modeling, dashboards, and APIs. It also includes an AI summarization layer that reads recent articles per ticker and stores grounded, source-linked summaries for your application.
 
-## Features
+## Key Features
 
-- **Containerized Architecture** - Fully dockerized for consistent deployment across environments
-- **Automated Data Collection** - Scheduled data extraction from stock market sources
-- **ETL Pipeline** - Complete Extract, Transform, Load workflow
-- **Data Analysis** - Built-in analysis tools for stock performance metrics
-- **Easy Setup** - Simple one-command deployment
-- **Python-Based** - Leverages popular Python data science libraries
+- **Containerized Architecture** — Fully Dockerized for consistent dev/prod deployment
+- **Automated Data Collection** — Scheduled pulls for OHLCV + news across configured tickers
+- **Medallion Database Schema** — Raw → Clean → Feature → AI tables in Supabase Postgres for traceability
+- **Replayable ETL + Backfills** — Idempotent loads with conflict-aware upserts to keep history consistent
+- **Real-Time Market Ingestion** — Async WebSockets for trades/NBBO/minute bars to support live monitoring
+- **Feature Engineering Layer** — Returns, SMA/EMA, Bollinger Bands, volatility + momentum/RSI/MACD/ATR/VWAP
+- **News Pipeline** — Ingests articles, normalizes metadata (headline, source, timestamps, url), dedupes by URL
+- **AI Ticker Summaries** — AI agents read recent news and generate grounded ticker summaries with sources
+- **Data Quality + Observability** — Structured logging, freshness checks, and basic anomaly/missing-data detection
+- **Easy Setup** — One-command bootstrap + seeded tickers for fast start
+- **Python-Based** — Uses popular Python data/ML tooling for analysis and downstream modeling
 
 ## Requirements
 
@@ -50,6 +55,8 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    ..
    ..
    ```
+4. **Make Supabase project and load db Schema**
+   - Paste contents of ``` init_db.sql ``` into Supabase SQL Editor
 
 ### Windows
 
@@ -70,9 +77,12 @@ Stock Pipeline is a containerized ETL (Extract, Transform, Load) system designed
    ...
    ...
    ```
+4. **Make Supabase project and load db Schema**
+   - Paste contents of ``` init_db.sql ``` into Supabase SQL Editor
 
 ## Database Schema
 ![db_schema_png](public/DB_SCHEMA.png)
+
 
 ## Usage
 
@@ -93,75 +103,30 @@ This starts all services in detached mode.
 ```
 ```
 
-## Database Schema
-![DB_SCHEMA_SVG](public\supabase-schema-mtrtxhzcctmbsyrljkwl (6).png)
 
-### Running Specific Analysis
+### Running Specific Script
 
 ```
 ```
 
-## Configuration
+## Impact / KPIs
 
-Configuration files are located in the `config/` directory:
+- **Coverage:** 230+ tickers across **1m–1d** intervals (configurable universe)
+- **Reliability:** Replayable backfills + idempotent upserts to keep history consistent over time
+- **Latency:** Real-time ingestion path for trades/NBBO/minute bars (async WebSockets)
+- **Data Quality:** Deterministic keys + dedupe rules (e.g., news by URL) to reduce duplicates and bad rows
+- **Cost Control:** Scheduled AI summaries + caching to reduce unnecessary external API calls
 
-- `config.yml` - Main configuration file
-- `.env` - Environment variables (API keys, credentials)
-- `SUPABASE_DB_URL` (optional) - Postgres URL for Supabase (e.g., postgres://user:pass@host:5432/db). If set, it overrides local DB_* settings.
+## What I Learned (Key Takeaways)
 
-
-### Example Configuration
-
-```yaml
-
-```
+- **Designing “medallion” schemas in Postgres:** raw JSON landing → typed clean tables → feature tables → serving/AI tables, with clear keys for joins and upserts.
+- **Idempotent pipelines matter:** backfills, retries, and conflict-aware upserts are required for long-running market data systems.
+- **Streaming + batch is a different game:** real-time feeds need async ingestion, buffering, and careful monitoring for disconnects/gaps.
+- **Feature engineering is a product decision:** choosing stable indicators (returns, SMA/EMA, Bollinger, volatility) and handling warm-up periods (NULL features) is essential for modeling.
+- **News is messy:** normalization, deduplication, and consistent timestamps are critical before using it for retrieval or summarization.
+- **LLMs need guardrails:** grounded summarization with sources + caching prevents hallucinations and keeps costs predictable.
+- **Observability saves time:** structured logs, freshness checks, and missing-data alerts reduce debugging time dramatically.
 
 ## Data Sources
 
-The pipeline uses Finnhub for all data sources:
-
-
-## Development
-
-### Local Development Setup
-
-1. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run tests:
-   ```bash
-   pytest tests/
-   ```
-
-### Running Without Docker
-
-```
-```
-
-
-## Troubleshooting
-
-### Docker Issues
-
-**Problem:** `docker-compose up` fails
-```bash
-# Solution: Reset Docker
-docker-compose down -v
-docker system prune -a
-docker-compose up --build
-```
-
-**Problem:** Permission denied errors
-```bash
-# Solution: Fix permissions
-chmod +x setup.sh
-sudo chown -R $USER:$USER data/ logs/
-```
+The pipeline uses yFiance for historical data, Alapaca for live websocket data and new data for the main data sources:
