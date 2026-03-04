@@ -16,12 +16,13 @@ from __future__ import annotations
 
 import logging
 import os
+import json 
 from typing import List, Dict, Any, Iterable, Optional
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from postgrest.exceptions import APIError
-from postgrest.exceptions import APIError
+import pprint
+import datetime as dt 
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,14 +33,15 @@ logger = logging.getLogger("commander")
 load_dotenv()
 
 
-def _require_env(name: str) -> str:
-    value = os.getenv(name)
-    if not value:
-        raise EnvironmentError(
-            f"{name} must be set (Supabase credentials required). "
-            "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY/ANON_KEY)."
-        )
-    return value
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+KEY = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("SUPABASE_KEY")
+    or os.getenv("SUPABASE_ANON_KEY")
+)
+
+assert SUPABASE_URL, "SUPABASE_URL must be set in .env file"
+assert KEY, "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY must be set in .env file"
 
 
 class Commander:
@@ -48,38 +50,15 @@ class Commander:
     """
 
     def __init__(self):
-        url = _require_env("SUPABASE_URL")
-        key = (
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-            or os.getenv("SUPABASE_KEY")
-            or os.getenv("SUPABASE_ANON_KEY")
-        )
-        if not key:
-            raise EnvironmentError(
-                "Supabase key missing. Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY."
-            )
+        url = SUPABASE_URL
+        key = KEY
 
         self.client: Client = create_client(url, key)
         logger.info("Supabase client initialized for %s", url)
 
-    # ------------------------------------------------------------------ helpers
-
     def _store_response(self, response: dict):
         """Store the agent response in the stock_ai_data table."""
-        record = {
-            "name": response.get("commander_name"),
-            "ticker": response.get("ticker"),
-            "summary": response.get("summary", ""),
-            "sources": response.get("sources", []),
-            "created_at": response.get("as_of_utc"),
-        }
-        count = self._upsert(
-            table_name="stock_ai_data",
-            records=[record],
-            conflict_columns=["ticker", "name", "created_at"],
-            upsert=True,
-        )
-        logger.info("Stored response for %s -> %d rows", record["ticker"], count)
+        raise NotImplementedError("store_response is not implemented in this version.")
 
     def _upsert(
         self,
@@ -104,7 +83,6 @@ class Commander:
         logger.debug("Supabase upsert/insert into %s -> %d rows", table_name, count)
         return count
 
-    # ------------------------------------------------------------------ public
     def bulk_insert_dicts(
         self,
         table_name: str,
@@ -137,7 +115,6 @@ class Commander:
             logger.warning(msg)
             raise
 
-    # Legacy-compatible no-op stubs (schema handled outside this module)
     def list_tables(self, show: bool = True):
         msg = "list_tables is not supported via Supabase; manage schema in Supabase UI."
         if show:
@@ -150,6 +127,91 @@ class Commander:
         logger.info("Deleting all rows from %s via Supabase", table_name)
         self.client.table(table_name).delete().neq("id", None).execute()
 
+    def store_clean_ticker_news(self, ticker: str, news_list: List[Dict[str, Any]]):
+        """Store news articles for a given ticker."""
+        
+        # Basic Check: Ensure ticker is provided and news_list is not empty
+        if not ticker:
+            logger.warning("Ticker symbol must be provided to store news.")
+            return 0
+        
+        if not news_list:
+            logger.warning("No news to store for ticker %s", ticker)
+            return 0
+
+        records = []
+        for article in news_list:
+            record = {
+                "ticker": ticker,
+                "id": article.get("id"),
+                "author": article.get("author"),
+                "url": article.get("url"),
+                "source": article.get("source"),
+                "created_at": article.get("created_at"),
+                "headline": article.get("headline"),
+                "summary": article.get("summary"),
+            }
+            
+            records.append(record)
+
+        count = self.bulk_insert_dicts(
+            table_name="clean_stock_news_data",
+            records=records,
+            conflict_columns=["id"],
+            upsert=True,
+        )
+        logger.info("Stored %d news articles for ticker %s", count, ticker)
+        return count
+    
+    def store_raw_ticker_news(self, ticker: str, raw_news: List[Dict[str, Any]]):
+        """Store raw news articles for a given ticker."""
+        
+        # Basic Check: Ensure ticker is provided and raw_news is not empty
+        if not ticker:
+            logger.warning("Ticker symbol must be provided to store raw news.")
+            return 0
+        
+        if not raw_news:
+            logger.warning("No raw news to store for ticker %s", ticker)
+            return 0
+
+        records = []
+        for article in raw_news:
+            record = {
+                "ticker": ticker,
+                "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "id": article.get("id"),
+                "data": json.dumps(article),
+            }
+            
+            records.append(record)
+
+        count = self.bulk_insert_dicts(
+            table_name="raw_stock_news_data",
+            records=records,
+            conflict_columns=["id"],
+            upsert=True,
+        )
+        logger.info("Stored %d raw news articles for ticker %s", count, ticker)
+        return count
+    
+    def get_ticker_news(self, ticker: str) -> str:
+        """Return JSON string of news for a given ticker."""
+        try:
+            resp = (
+                self.client.table("stock_news_data")
+                .select("*")
+                .eq("ticker", ticker)
+                .order("published_at", desc=True)
+                .limit(10)
+                .execute()
+            )
+            news_list = resp.data or []
+            return json.dumps({"news": news_list})
+        except APIError as e:
+            logger.warning("Failed to retrieve news for ticker %s: %s", ticker, e)
+            return json.dumps({"news": []})
+        
 if __name__ == "__main__":
     c = Commander()
-    print("Connected to Supabase. Example count:", c.count_rows("stock_raw_data_yf"))
+    

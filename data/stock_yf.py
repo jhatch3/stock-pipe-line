@@ -122,7 +122,7 @@ def store_raw(ticker: str, raw_df: pd.DataFrame, interval: str) -> None:
     fetched_at = datetime.now(timezone.utc)
     for row in raw_df.itertuples(index=False):
         rows.append({
-            "symbol": ticker,
+            "ticker": ticker,
             "timestamp": row.timestamp,   
             "open": (row.open),
             "high": (row.high),
@@ -135,7 +135,7 @@ def store_raw(ticker: str, raw_df: pd.DataFrame, interval: str) -> None:
 
     payload = json.dumps(rows, default=str)
     record = {
-        "symbol": ticker,
+        "ticker": ticker,
         "payload": payload,
         "interval": interval,
         "last_updated": datetime.now(timezone.utc),
@@ -171,7 +171,7 @@ def clean(ticker: str, raw_df: pd.DataFrame, interval: str):
     rows = []
     for row in raw_df.itertuples(index=False):
         rows.append({
-            "symbol": ticker,
+            "ticker": ticker,
             "interval": interval,
             "timestamp": row.timestamp,     # datetime w/ tz
             "open": float(row.open),
@@ -187,7 +187,7 @@ def clean(ticker: str, raw_df: pd.DataFrame, interval: str):
 
 
 def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
-    """Persist curated layer to DB with upsert on (symbol, timestamp)."""
+    """Persist curated layer to DB with upsert on (ticker, timestamp)."""
     cleaned_list = list(cleaned)
     if not cleaned_list:
         logger.info("No clean rows to upsert for %s", ticker)
@@ -196,7 +196,7 @@ def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
     commander.bulk_insert_dicts(
         CLEAN_TABLE,
         _serialize_rows(cleaned_list),
-        conflict_columns=["symbol", "interval", "timestamp"],
+        conflict_columns=["ticker", "interval", "timestamp"],
         upsert=True,
     )
     logger.info(
