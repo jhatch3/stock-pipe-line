@@ -1,7 +1,5 @@
 # Stock Pipeline - Data Pipeline For Stock Analysis
 
-A robust, Docker-based data pipeline for collecting, cleaning, and featurizing market + news data, with AI-generated ticker summaries.
-
 ## Overview
 
 Stock Pipeline is a containerized ELT system that ingests real-time and historical market data (OHLCV, trades, quotes) plus ticker news, then organizes it into a Supabase Postgres medallion schema: **raw → clean → features → AI**. It supports replayable backfills, conflict-aware upserts, and feature generation for downstream screening, modeling, dashboards, and APIs. It also includes an AI summarization layer that reads recent articles per ticker and stores grounded, source-linked summaries for your application.
@@ -40,7 +38,7 @@ Stock Pipeline is a containerized ELT system that ingests real-time and historic
 
 ## Data Sources
 
-The pipeline uses yFiance for historical ticker data, and Alapaca for live websocket data and neww data.
+The pipeline uses yFiance for historical ticker data, and Alapaca for live websocket data and news data.
 
 
 ## Database Schema
