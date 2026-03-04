@@ -77,7 +77,7 @@ The pipeline uses yFiance for historical ticker data, and Alapaca for live webso
 
 2. **Run setup script** (in a new terminal)
    ```bash
-   ./setup.sh
+   ./scripts/setup.ps1
    ```
 
 3. **Set .env variables** 
@@ -100,7 +100,7 @@ The pipeline uses yFiance for historical ticker data, and Alapaca for live webso
 
 2. **Run setup script** (in a new PowerShell terminal)
    ```powershell
-   .\setup.ps1
+   .\scripts\setup.ps1
    ```
 
 3. **Set .env variables** 
