@@ -21,8 +21,10 @@ from typing import List, Dict, Any, Iterable, Optional
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from postgrest.exceptions import APIError
 import pprint
 import datetime as dt 
+import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -122,6 +124,32 @@ class Commander:
         logger.warning(msg)
         return []
 
+    def fetch_ohlcv(self, ticker: str, interval: str, limit: int = 2000) -> "pd.DataFrame":
+        """
+        Fetch the most recent `limit` OHLCV rows for a ticker/interval from
+        clean_stock_data_yf, returned as a DataFrame indexed by UTC timestamp
+        in ascending order.
+        """
+        resp = (
+            self.client.table("stock_clean_data_yf")
+            .select("timestamp,open,high,low,close,volume")
+            .eq("ticker", ticker)
+            .eq("interval", interval)
+            .order("timestamp", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(rows)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df = df.set_index("timestamp").sort_index()
+        for col in ["open", "high", "low", "close", "volume"]:
+            df[col] = pd.to_numeric(df[col])
+        return df
+
     def delete_table(self, table_name: str):
         """Soft fallback: delete all rows from table."""
         logger.info("Deleting all rows from %s via Supabase", table_name)
@@ -195,14 +223,23 @@ class Commander:
         logger.info("Stored %d raw news articles for ticker %s", count, ticker)
         return count
     
+    def get_tickers(self) -> list[str]:
+        """Fetch all ticker symbols from the tickers table."""
+        resp = (
+            self.client.table("tickers")
+            .select("symbol")
+            .execute()
+        )
+        return [row["symbol"] for row in (resp.data or [])]
+
     def get_ticker_news(self, ticker: str) -> str:
         """Return JSON string of news for a given ticker."""
         try:
             resp = (
-                self.client.table("stock_news_data")
+                self.client.table("clean_stock_news_data")
                 .select("*")
                 .eq("ticker", ticker)
-                .order("published_at", desc=True)
+                .order("created_at", desc=True)
                 .limit(10)
                 .execute()
             )

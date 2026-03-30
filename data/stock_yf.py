@@ -56,6 +56,8 @@ def _fmt_pacific(ts: datetime) -> str:
 
 
 def _serialize_value(value):
+    if isinstance(value, float) and (value != value):  # NaN check
+        return None
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, list):
@@ -162,6 +164,9 @@ def clean(ticker: str, raw_df: pd.DataFrame, interval: str):
 
     # de-dupe just in case (safe guard)
     raw_df = raw_df[~raw_df.index.duplicated(keep="last")]
+
+    # Drop incomplete bars (e.g. today's partial bar where close is NaN)
+    raw_df = raw_df.dropna(subset=["Open", "High", "Low", "Close", "Volume"])
 
     raw_df = raw_df.rename(columns=str.lower).reset_index()
     raw_df = raw_df.rename(columns={raw_df.columns[0]: "timestamp"})

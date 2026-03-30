@@ -33,8 +33,8 @@ from db.commander import Commander
 from data.ticker_list import TICKERS
 
 # --- Config -----------------------------------------------------------------
-RAW_TABLE = "stock_raw_data_alpaca"
-CLEAN_TABLE = "stock_clean_data_alpaca"
+RAW_TABLE = "raw_stock_data_alpaca"
+CLEAN_TABLE = "clean_stock_data_alpaca"
 
 load_dotenv()
 ALPACA_KEY = os.getenv("ALPACA_KEY")
