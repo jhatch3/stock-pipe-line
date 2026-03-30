@@ -6,6 +6,10 @@ End-to-end quantitative data platform: automated ingestion → statistical featu
 
 A production-grade stock analytics system built on a medallion architecture (**raw → clean → features → AI**). Ingests multi-interval OHLCV and news data for 230+ tickers, computes 30+ rolling financial features per bar, and surfaces AI-generated research summaries through a FastAPI agent and a React dashboard with live charting.
 
+## Demo
+
+![demo](https://github.com/jhatch3/stock-pipe-line/blob/main/2026-03-29%2020-46-32.mp4)
+
 ## Tech Stack
 
 | Layer | Technologies |
