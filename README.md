@@ -2,13 +2,13 @@
 
 End-to-end quantitative data platform: automated ingestion → statistical feature engineering → LLM-powered research → production React dashboard.
 
+## Demo
+
+https://github.com/jhatch3/stock-pipe-line/raw/main/2026-03-29%2020-46-32.mp4
+
 ## Overview
 
 A production-grade stock analytics system built on a medallion architecture (**raw → clean → features → AI**). Ingests multi-interval OHLCV and news data for 230+ tickers, computes 30+ rolling financial features per bar, and surfaces AI-generated research summaries through a FastAPI agent and a React dashboard with live charting.
-
-## Demo
-
-![demo](https://github.com/jhatch3/stock-pipe-line/blob/main/2026-03-29%2020-46-32.mp4)
 
 ## Tech Stack
 
@@ -29,35 +29,11 @@ A production-grade stock analytics system built on a medallion architecture (**r
 - Modular pipeline architecture: `price_24hr` → `news` → `features` → `ai_agent`, each independently schedulable
 - Ticker universe driven by database — add/remove tickers without touching pipeline code
 
-<<<<<<< HEAD
 **Feature Engineering & Statistical Modeling**
 - 30+ per-bar rolling features: Jensen's Alpha, Beta, Sharpe Ratio, Sortino Ratio, Information Ratio, VaR(95%), Max Drawdown, Skewness, Kurtosis
 - Technical indicators: RSI(14), MACD(12,26,9), Bollinger Bands(20,2σ), VWAP, VIX overlay
 - Fundamental metrics: P/E, P/B, P/S, EV/EBITDA, PEG, ROE, ROA, Debt/Equity, ICR
 - Proper Jensen's Alpha: `α = (Rp − Rf) − β·(Rm − Rf)` annualized over 1,638 hourly periods
-=======
-## Impact / KPIs
-
-- **Coverage:** 230+ tickers across **1m–1d** intervals (configurable universe)
-- **Reliability:** Replayable backfills + idempotent upserts to keep history consistent over time
-- **Latency:** Real-time ingestion path for trades/NBBO/minute bars (async WebSockets)
-- **Data Quality:** Deterministic keys + dedupe rules (e.g., news by URL) to reduce duplicates and bad rows
-- **Cost Control:** Scheduled AI summaries + caching to reduce unnecessary external API calls
-
-## What I Learned (Key Takeaways)
-
-- **Designing “medallion” schemas in Postgres:** raw JSON landing → typed clean tables → feature tables → serving/AI tables, with clear keys for joins and upserts.
-- **Idempotent pipelines matter:** backfills, retries, and conflict-aware upserts are required for long-running market data systems.
-- **Streaming + batch is a different game:** real-time feeds need async ingestion, buffering, and careful monitoring for disconnects/gaps.
-- **Feature engineering is a product decision:** choosing stable indicators (returns, SMA/EMA, Bollinger, volatility) and handling warm-up periods (NULL features) is essential for modeling.
-- **News is messy:** normalization, deduplication, and consistent timestamps are critical before using it for retrieval or summarization.
-- **LLMs need guardrails:** grounded summarization with sources + caching prevents hallucinations and keeps costs predictable.
-- **Observability saves time:** structured logs, freshness checks, and missing-data alerts reduce debugging time dramatically.
-
-## Data Sources
-
-The pipeline uses yFiance for historical ticker data, and Alapaca for live websocket data and news data.
->>>>>>> 2147b1e474a189e19135c4070e37842d1d15012c
 
 
 **AI Agent Layer**
@@ -189,8 +165,3 @@ npm install
 npm run dev
 ```
 
-## Key Engineering Decisions
-
-- **Interval-aware benchmark alignment** — benchmark must match OHLCV interval. Daily benchmark reindexed to hourly creates 85% zero returns, breaking beta/alpha computation entirely.
-- **SMA200 warmup windowing** — frontend fetches `cfg.days + 310` calendar days (~220 trading-day buffer) to ensure SMA200 is seeded before the visible display window.
-- **DB-driven ticker universe** — all pipelines query `SELECT symbol FROM tickers` at runtime rather than reading a hardcoded list.
