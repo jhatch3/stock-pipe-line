@@ -1,10 +1,7 @@
 # Stock Intelligence Pipeline
 
-<<<<<<< HEAD
 End-to-end quantitative data platform: automated ingestion → statistical feature engineering → LLM-powered research → production React dashboard.
 
-=======
->>>>>>> 2147b1e474a189e19135c4070e37842d1d15012c
 ## Overview
 
 A production-grade stock analytics system built on a medallion architecture (**raw → clean → features → AI**). Ingests multi-interval OHLCV and news data for 230+ tickers, computes 30+ rolling financial features per bar, and surfaces AI-generated research summaries through a FastAPI agent and a React dashboard with live charting.
