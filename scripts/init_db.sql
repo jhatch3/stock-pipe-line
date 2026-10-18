@@ -5,6 +5,7 @@
 
 begin;
 
+drop table if exists ticker_snapshot;
 drop table if exists stock_ai_analysis;
 drop table if exists stock_features;
 drop table if exists clean_stock_news_data;
@@ -81,12 +82,27 @@ create table stock_ai_analysis (
   sources    jsonb
 );
 
+-- Dashboard snapshot, one row per ticker. Filled by pipelines/snapshot.py.
+create table ticker_snapshot (
+  ticker        text primary key,
+  last_close    double precision,
+  last_ts       timestamptz,
+  chg_1d        double precision,
+  chg_1w        double precision,
+  chg_1m        double precision,
+  spark         jsonb,
+  rsi           double precision,
+  sharpe_ratio  double precision,
+  volatility    double precision,
+  updated_at    timestamptz not null default now()
+);
+
 -- The frontend uses the anon key: allow read-only access. Pipelines use the
 -- service_role key, which bypasses RLS.
 do $$
 declare t text;
 begin
-  foreach t in array array['tickers','stock_clean_data_yf','stock_features','clean_stock_news_data','stock_ai_analysis'] loop
+  foreach t in array array['tickers','stock_clean_data_yf','stock_features','clean_stock_news_data','stock_ai_analysis','ticker_snapshot'] loop
     execute format('alter table %I enable row level security', t);
     execute format('create policy "public read" on %I for select to anon, authenticated using (true)', t);
     execute format('grant select on %I to anon, authenticated', t);
