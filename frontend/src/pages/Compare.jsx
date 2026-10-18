@@ -5,8 +5,9 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { supabase } from '../lib/supabase.js'
-import { FEATURE_SECTIONS, sectorTagClass, formatValue } from '../lib/constants.js'
-import Header from '../components/Header.jsx'
+import { FEATURE_SECTIONS, formatValue } from '../lib/constants.js'
+import SectorBadge from '../components/SectorBadge.jsx'
+import { useTickers } from '../components/AppShell.jsx'
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 const MAX_TICKERS = 5
@@ -108,11 +109,7 @@ function TickerSearch({ tickers, selected, onAdd }) {
             >
               <span className="font-bold text-sm text-gray-900 w-14 shrink-0">{t.symbol}</span>
               <span className="text-xs text-gray-500 truncate flex-1">{t.name}</span>
-              {t.sector && (
-                <span className={`text-xs px-2 py-0.5 font-medium shrink-0 ${sectorTagClass(t.sector)}`}>
-                  {t.sector}
-                </span>
-              )}
+              <SectorBadge sector={t.sector} />
             </button>
           ))}
         </div>
@@ -125,7 +122,7 @@ export default function Compare() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  const [allTickers, setAllTickers] = useState([])
+  const allTickers = useTickers()
   const [selected, setSelected] = useState(() => {
     const t = searchParams.get('tickers')
     return t ? t.split(',').filter(Boolean).slice(0, MAX_TICKERS) : []
@@ -140,13 +137,6 @@ export default function Compare() {
     if (selected.length > 0) setSearchParams({ tickers: selected.join(',') })
     else setSearchParams({})
   }, [selected])
-
-  // Fetch all tickers for search
-  useEffect(() => {
-    supabase.from('tickers').select('symbol,name,sector').order('symbol').then(({ data }) => {
-      if (data) setAllTickers(data)
-    })
-  }, [])
 
   // Fetch price + features data when selection or range changes
   useEffect(() => {
@@ -222,7 +212,6 @@ export default function Compare() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header tickers={allTickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
 
       <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8">
         {/* Page header */}

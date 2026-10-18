@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { FEATURE_SECTIONS, sectorTagClass } from '../lib/constants.js'
-import Header from '../components/Header.jsx'
+import { FEATURE_SECTIONS } from '../lib/constants.js'
+import SectorBadge from '../components/SectorBadge.jsx'
 import FeatureSection from '../components/FeatureSection.jsx'
 import PriceChart from '../components/PriceChart.jsx'
 import SectorCompareTable from '../components/SectorCompareTable.jsx'
@@ -37,7 +37,6 @@ export default function TickerDetail() {
   const { symbol } = useParams()
   const navigate   = useNavigate()
 
-  const [tickers,        setTickers]        = useState([])
   const [ticker,         setTicker]         = useState(null)
   const [features,       setFeatures]       = useState(null)
   const [price,          setPrice]          = useState(null)
@@ -53,20 +52,16 @@ export default function TickerDetail() {
       setSectorFeatures([])
 
       const [
-        { data: allTickers },
         { data: tickerData, error: tickerError },
         { data: featuresData },
         { data: priceRows },
       ] = await Promise.all([
-        supabase.from('tickers').select('symbol,name,sector').order('symbol'),
         supabase.from('tickers').select('*').eq('symbol', symbol).single(),
         supabase.from('stock_features').select('*').eq('ticker', symbol).eq('interval', '1h')
           .order('timestamp', { ascending: false }).limit(1).single(),
         supabase.from('stock_clean_data_yf').select('close,timestamp').eq('ticker', symbol)
           .eq('interval', '1d').order('timestamp', { ascending: false }).limit(2),
       ])
-
-      if (allTickers) setTickers(allTickers)
 
       if (tickerError || !tickerData) {
         setError(`Ticker "${symbol}" not found.`)
@@ -135,8 +130,7 @@ export default function TickerDetail() {
   // ── Loading / error ──────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-white">
-      <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
-      <div className="sticky top-14 z-40 bg-white border-b border-gray-200">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-4 flex items-center gap-4 animate-pulse">
           <div className="h-8 w-20 bg-gray-200 rounded-sm" />
           <div className="h-8 w-24 bg-gray-200 rounded-sm" />
@@ -150,7 +144,6 @@ export default function TickerDetail() {
 
   if (error) return (
     <div className="min-h-screen bg-white">
-      <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
       <div className="flex flex-col items-center justify-center py-32 text-gray-400">
         <span className="text-5xl mb-4">⚠️</span>
         <p className="text-lg font-medium text-gray-700">{error}</p>
@@ -162,7 +155,6 @@ export default function TickerDetail() {
     </div>
   )
 
-  const sectorClass  = ticker?.sector ? sectorTagClass(ticker.sector) : null
   const lastUpdated  = features?.timestamp ? formatTimestamp(features.timestamp) : null
   const change       = price?.prev_close ? price.close - price.prev_close : null
   const changePct    = change !== null ? (change / price.prev_close) * 100 : null
@@ -170,10 +162,9 @@ export default function TickerDetail() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
 
       {/* Sticky sub-header */}
-      <div className="sticky top-14 z-40 bg-white border-b border-gray-200">
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <button onClick={() => navigate('/')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
@@ -182,9 +173,7 @@ export default function TickerDetail() {
           <div className="w-px h-5 bg-gray-300" />
           <span className="text-2xl font-extrabold text-gray-900 tracking-tight">{ticker?.symbol}</span>
           {ticker?.name && <span className="text-base text-gray-500 font-medium hidden sm:block">{ticker.name}</span>}
-          {ticker?.sector && (
-            <span className={`text-xs px-2.5 py-1 font-semibold ${sectorClass}`}>{ticker.sector}</span>
-          )}
+          <SectorBadge sector={ticker?.sector} size="md" />
           <div className="ml-auto flex items-center gap-3">
             {lastUpdated && <span className="text-xs text-gray-400 hidden md:block">Updated {lastUpdated}</span>}
             <button onClick={() => navigate(`/compare?tickers=${symbol}`)}

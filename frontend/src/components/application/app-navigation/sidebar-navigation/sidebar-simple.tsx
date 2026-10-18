@@ -1,5 +1,6 @@
 // Source: Untitled UI React (MIT) — https://github.com/untitleduico/react/blob/1d410cb/components/application/app-navigation/sidebar-navigation/sidebar-simple.tsx
 // License: see src/components/untitled-ui-LICENSE
+// Modified: `logo` and `search` slots replace the hard-coded Untitled logo and static search inputs.
 "use client";
 
 import type { ReactNode } from "react";
@@ -30,6 +31,10 @@ interface SidebarNavigationProps {
     className?: string;
     /** Whether to round the account card avatar. */
     avatarRounded?: boolean;
+    /** Logo shown at the top of the sidebar and in the mobile header. */
+    logo?: ReactNode;
+    /** Search control shown under the logo. */
+    search?: ReactNode;
 }
 
 export const SidebarNavigationSimple = ({
@@ -40,6 +45,8 @@ export const SidebarNavigationSimple = ({
     showAccountCard = true,
     hideBorder = false,
     className,
+    logo = <UntitledLogo className="h-6" />,
+    search,
 }: SidebarNavigationProps) => {
     const MAIN_SIDEBAR_WIDTH = 280;
 
@@ -57,13 +64,17 @@ export const SidebarNavigationSimple = ({
             )}
         >
             <div className="flex flex-col gap-5 px-4 lg:px-5">
-                <UntitledLogo className="h-6" />
+                {logo}
 
-                {/* Mobile search input */}
-                <Input size="md" aria-label="Search" placeholder="Search" icon={SearchLg} className="md:hidden" />
+                {search ?? (
+                    <>
+                        {/* Mobile search input */}
+                        <Input size="md" aria-label="Search" placeholder="Search" icon={SearchLg} className="md:hidden" />
 
-                {/* Desktop search input */}
-                <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} className="max-md:hidden" />
+                        {/* Desktop search input */}
+                        <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} className="max-md:hidden" />
+                    </>
+                )}
             </div>
 
             <NavList activeUrl={activeUrl} items={items} />
@@ -91,7 +102,7 @@ export const SidebarNavigationSimple = ({
     return (
         <>
             {/* Mobile header navigation */}
-            <MobileNavigationHeader>{content}</MobileNavigationHeader>
+            <MobileNavigationHeader logo={logo}>{content}</MobileNavigationHeader>
 
             {/* Desktop sidebar navigation */}
             <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:flex">{content}</div>

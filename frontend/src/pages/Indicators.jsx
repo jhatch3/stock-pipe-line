@@ -1,9 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import { supabase } from '../lib/supabase.js'
-import Header from '../components/Header.jsx'
 
 // Indicator reference typeset as a LaTeX-style paper. Formulas match
 // src/lib/indicators.js (chart overlays) and data/features.py (stored metrics).
@@ -82,13 +78,6 @@ const SECTIONS = [
 const R = String.raw
 
 export default function Indicators() {
-  const navigate  = useNavigate()
-  const [tickers, setTickers] = useState([])
-
-  useEffect(() => {
-    supabase.from('tickers').select('symbol,name,sector').order('symbol')
-      .then(({ data }) => { if (data) setTickers(data) })
-  }, [])
 
   // Equations are numbered in render order, like LaTeX's \begin{equation}
   let eqn = 0
@@ -96,7 +85,6 @@ export default function Indicators() {
 
   return (
     <div className="min-h-screen bg-[#e9eaec]">
-      <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
 
       <main className="px-3 sm:px-6 py-8">
         <article className="paper max-w-[820px] mx-auto bg-white shadow-md px-6 sm:px-16 py-14 sm:py-20">

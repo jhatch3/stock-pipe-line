@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { sectorTagClass } from '../lib/constants.js'
-import Header from '../components/Header.jsx'
+import SectorBadge from '../components/SectorBadge.jsx'
+import { useTickers } from '../components/AppShell.jsx'
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 function SkeletonCard() {
@@ -78,13 +78,7 @@ function HeroSearch({ tickers, onSelect }) {
             >
               <span className="font-bold text-gray-900 w-16 shrink-0 text-sm">{t.symbol}</span>
               <span className="text-sm text-gray-600 truncate flex-1">{t.name}</span>
-              {t.sector && (
-                <span
-                  className={`text-xs px-2 py-0.5 font-medium shrink-0 ${sectorTagClass(t.sector)}`}
-                >
-                  {t.sector}
-                </span>
-              )}
+              <SectorBadge sector={t.sector} />
             </button>
           ))}
         </div>
@@ -104,39 +98,17 @@ function TickerCard({ ticker, onClick }) {
         {ticker.symbol}
       </p>
       <p className="text-xs text-gray-500 truncate mt-0.5 mb-3">{ticker.name || '—'}</p>
-      {ticker.sector && (
-        <span
-          className={`inline-block text-xs px-2 py-0.5 font-medium ${sectorTagClass(ticker.sector)}`}
-        >
-          {ticker.sector}
-        </span>
-      )}
+      <SectorBadge sector={ticker.sector} />
     </button>
   )
 }
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [tickers, setTickers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const tickers = useTickers()
+  const loading = tickers.length === 0
   const [selectedSector, setSelectedSector] = useState('All')
   const navigate = useNavigate()
-
-  useEffect(() => {
-    async function fetchTickers() {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('tickers')
-        .select('symbol, name, sector')
-        .order('symbol', { ascending: true })
-
-      if (!error && data) {
-        setTickers(data)
-      }
-      setLoading(false)
-    }
-    fetchTickers()
-  }, [])
 
   function handleSelectTicker(symbol) {
     navigate(`/ticker/${symbol}`)
@@ -152,7 +124,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header tickers={tickers} onSelectTicker={handleSelectTicker} />
 
       {/* Hero */}
       <section className="bg-linear-to-b from-gray-50 to-white pt-16 pb-12 px-4">
@@ -170,7 +141,7 @@ export default function Home() {
       </section>
 
       {/* Sector Filter */}
-      <section className="sticky top-14 z-40 bg-white border-b border-gray-100 px-4">
+      <section className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4">
         <div className="max-w-(--breakpoint-xl) mx-auto">
           <div className="flex items-center gap-2 py-3 overflow-x-auto">
             {sectors.map((sector) => (

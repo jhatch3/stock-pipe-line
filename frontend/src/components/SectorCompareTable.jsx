@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { formatValue, sectorTagClass } from '../lib/constants.js'
+import { formatValue } from '../lib/constants.js'
+import SectorBadge from './SectorBadge.jsx'
 
 // higherBetter: true = rank 1 is highest value, false = rank 1 is lowest, null = no rank badge
 const COLUMNS = [
@@ -89,8 +90,6 @@ export default function SectorCompareTable({ symbol, sector }) {
     return sortAsc ? cmp : -cmp
   })
 
-  const sectorClass = sectorTagClass(sector)
-
   return (
     <div className="bg-white border border-gray-200 ui-card overflow-hidden">
       {/* Header */}
@@ -98,11 +97,7 @@ export default function SectorCompareTable({ symbol, sector }) {
         <div className="flex items-center gap-2">
           <span className="text-lg">🏢</span>
           <h3 className="font-semibold text-gray-900 text-sm">Sector Comparison</h3>
-          {sector && (
-            <span className={`text-xs px-2 py-0.5 font-medium ${sectorClass}`}>
-              {sector}
-            </span>
-          )}
+          <SectorBadge sector={sector} />
         </div>
         <span className="text-xs text-gray-400">{rows.length} tickers · click to sort</span>
       </div>

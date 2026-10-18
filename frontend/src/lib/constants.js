@@ -1,7 +1,18 @@
-export const sectorSlug = name => String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-')
-
-// Class for a sector tag; colors are defined per sector in index.css
-export const sectorTagClass = sector => `ui-tag tag-sector${sector ? ` s-${sectorSlug(sector)}` : ''}`
+// Untitled UI Badge color per sector (yfinance sector names)
+export const SECTOR_BADGE_COLOR = {
+  'Technology':             'blue',
+  'Financial Services':     'success',
+  'Healthcare':             'error',
+  'Industrials':            'slate',
+  'Energy':                 'warning',
+  'Consumer Cyclical':      'orange',
+  'Consumer Defensive':     'pink',
+  'Utilities':              'sky',
+  'Basic Materials':        'gray',
+  'Communication Services': 'purple',
+  'Real Estate':            'indigo',
+  'ETF':                    'brand',
+}
 
 export const SECTION_COLORS = {
   blue:    { borderColor: 'border-blue-500',    headerBg: 'bg-blue-50',    accentText: 'text-blue-700' },
