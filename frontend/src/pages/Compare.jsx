@@ -1,377 +1,343 @@
-import { useState, useEffect, useRef } from 'react'
-import { SearchLg, ArrowLeft, XClose, BarChartSquare02 } from '@untitledui/icons'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+// UI: Untitled UI buttons, button group, combobox, table, chart styling —
+//   https://www.untitledui.com/react/components/button-groups
+//   https://www.untitledui.com/react/components/select
+//   https://www.untitledui.com/react/components/tables
+//   https://www.untitledui.com/react/components/charts
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Bar, BarChart, CartesianGrid, Cell, Line, LineChart, PolarAngleAxis, PolarGrid,
+  Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
+import { ArrowLeft, BarChartSquare02, XClose } from '@untitledui/icons'
+import { ChartTooltipContent } from '@/components/application/charts/charts-base'
+import { Table, TableCard } from '@/components/application/table/table'
+import { Button } from '@/components/base/buttons/button'
+import { ButtonGroup, ButtonGroupItem } from '@/components/base/button-group/button-group'
+import { Select } from '@/components/base/select/select'
 import { supabase } from '../lib/supabase.js'
-import { FEATURE_SECTIONS, formatValue } from '../lib/constants.js'
-import SectorBadge from '../components/SectorBadge.jsx'
+import { formatValue } from '../lib/constants.js'
+import { CARD } from '../lib/ui.js'
+import { percentile } from '../lib/peers.js'
+import { PEER_METRICS } from '../components/TickerVisuals.jsx'
 import { useTickers } from '../components/AppShell.jsx'
 
-const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+const COLORS = ['#0D9488', '#2563EB', '#F59E0B', '#E11D48', '#7C3AED']
 const MAX_TICKERS = 5
 
 const RANGES = [
-  { label: '1W', days: 7 },
   { label: '1M', days: 30 },
   { label: '3M', days: 90 },
   { label: '6M', days: 180 },
   { label: '1Y', days: 365 },
 ]
 
-// Metrics to show in comparison table (one per section, most useful)
 const COMPARE_METRICS = [
-  { key: 'rsi',              label: 'RSI',                format: 'number',  decimals: 1 },
-  { key: 'volatility',       label: 'Volatility',         format: 'percent', decimals: 2 },
-  { key: 'sharpe_ratio',     label: 'Sharpe',             format: 'number',  decimals: 2 },
-  { key: 'beta',             label: 'Beta',               format: 'number',  decimals: 2 },
-  { key: 'alpha',            label: 'Alpha',              format: 'percent', decimals: 2 },
-  { key: 'max_drawdown',     label: 'Max Drawdown',       format: 'percent', decimals: 2 },
-  { key: 'pe_ratio',         label: 'P/E',                format: 'number',  decimals: 1 },
-  { key: 'pb_ratio',         label: 'P/B',                format: 'number',  decimals: 2 },
-  { key: 'roe',              label: 'ROE',                format: 'percent', decimals: 2 },
-  { key: 'net_profit_margin',label: 'Net Margin',         format: 'percent', decimals: 2 },
-  { key: 'debt_to_equity',   label: 'D/E',                format: 'number',  decimals: 2 },
-  { key: 'current_ratio',    label: 'Current Ratio',      format: 'number',  decimals: 2 },
+  { key: 'rsi',               label: 'RSI',           format: 'number',  decimals: 1 },
+  { key: 'volatility',        label: 'Volatility',    format: 'percent', decimals: 2 },
+  { key: 'sharpe_ratio',      label: 'Sharpe',        format: 'number',  decimals: 2 },
+  { key: 'beta',              label: 'Beta',          format: 'number',  decimals: 2 },
+  { key: 'alpha',             label: 'Alpha',         format: 'percent', decimals: 2 },
+  { key: 'max_drawdown',      label: 'Max drawdown',  format: 'percent', decimals: 2 },
+  { key: 'pe_ratio',          label: 'P/E',           format: 'number',  decimals: 1 },
+  { key: 'pb_ratio',          label: 'P/B',           format: 'number',  decimals: 2 },
+  { key: 'roe',               label: 'ROE',           format: 'percent', decimals: 2 },
+  { key: 'net_profit_margin', label: 'Net margin',    format: 'percent', decimals: 2 },
+  { key: 'debt_to_equity',    label: 'D/E',           format: 'number',  decimals: 2 },
+  { key: 'current_ratio',     label: 'Current ratio', format: 'number',  decimals: 2 },
 ]
 
-function fmt(ts) {
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
+const chartClass = 'text-tertiary [&_.recharts-text]:text-xs'
+const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-function NormalizedTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
+function Card({ title, subtitle, right, children, className = '' }) {
   return (
-    <div className="bg-white border border-gray-200 ui-tile shadow-lg p-3 text-xs">
-      <p className="font-semibold text-gray-600 mb-1">{label}</p>
-      {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="text-gray-700 font-medium">{p.dataKey}</span>
-          <span className="ml-auto font-semibold" style={{ color: p.color }}>
-            {p.value >= 0 ? '+' : ''}{Number(p.value).toFixed(2)}%
-          </span>
+    <section className={`${CARD} p-5 ${className}`}>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-primary">{title}</h2>
+          {subtitle && <p className="text-sm text-tertiary">{subtitle}</p>}
         </div>
-      ))}
-    </div>
-  )
-}
-
-function TickerSearch({ tickers, selected, onAdd }) {
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-
-  const filtered = query.trim()
-    ? tickers
-        .filter(t =>
-          !selected.includes(t.symbol) &&
-          (t.symbol.toLowerCase().includes(query.toLowerCase()) ||
-           (t.name && t.name.toLowerCase().includes(query.toLowerCase())))
-        )
-        .slice(0, 8)
-    : []
-
-  useEffect(() => {
-    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
-
-  function handleAdd(symbol) {
-    setQuery('')
-    setOpen(false)
-    onAdd(symbol)
-  }
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="relative">
-        <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" aria-hidden="true" />
-        <input
-          type="text"
-          placeholder="Add ticker to compare…"
-          value={query}
-          disabled={selected.length >= MAX_TICKERS}
-          onChange={e => { setQuery(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 ui-tile bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        />
+        {right}
       </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 ui-tile shadow-xl overflow-hidden z-50">
-          {filtered.map(t => (
-            <button
-              key={t.symbol}
-              onMouseDown={() => handleAdd(t.symbol)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-blue-50 transition-colors"
-            >
-              <span className="font-bold text-sm text-gray-900 w-14 shrink-0">{t.symbol}</span>
-              <span className="text-xs text-gray-500 truncate flex-1">{t.name}</span>
-              <SectorBadge sector={t.sector} />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {children}
+    </section>
   )
+}
+
+// Pearson correlation of two equal-length arrays
+function pearson(a, b) {
+  const n = a.length
+  if (n < 3) return null
+  const ma = a.reduce((s, x) => s + x, 0) / n
+  const mb = b.reduce((s, x) => s + x, 0) / n
+  let cov = 0, va = 0, vb = 0
+  for (let i = 0; i < n; i++) {
+    cov += (a[i] - ma) * (b[i] - mb)
+    va += (a[i] - ma) ** 2
+    vb += (b[i] - mb) ** 2
+  }
+  return va && vb ? cov / Math.sqrt(va * vb) : null
+}
+
+// Daily returns on dates where every ticker traded, then pairwise correlation
+function correlationMatrix(closesBySym, symbols) {
+  const dates = Object.keys(closesBySym[symbols[0]] ?? {})
+    .filter(d => symbols.every(s => closesBySym[s]?.[d] != null)).sort()
+  const rets = Object.fromEntries(symbols.map(s => [s, dates.slice(1).map((d, i) =>
+    closesBySym[s][d] / closesBySym[s][dates[i]] - 1)]))
+  return symbols.map(a => symbols.map(b => (a === b ? 1 : pearson(rets[a], rets[b]))))
+}
+
+function heatColor(r) {
+  if (r == null) return 'transparent'
+  return r >= 0 ? `rgba(13, 148, 136, ${0.12 + 0.75 * r})` : `rgba(225, 29, 72, ${0.12 + 0.75 * -r})`
 }
 
 export default function Compare() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
-
   const allTickers = useTickers()
   const [selected, setSelected] = useState(() => {
     const t = searchParams.get('tickers')
     return t ? t.split(',').filter(Boolean).slice(0, MAX_TICKERS) : []
   })
   const [range, setRange] = useState('3M')
-  const [chartData, setChartData] = useState([])
-  const [features, setFeatures] = useState({}) // { symbol: featuresRow }
-  const [loadingChart, setLoadingChart] = useState(false)
+  const [closes, setCloses] = useState({})      // { sym: { 'YYYY-MM-DD': close } }
+  const [universe, setUniverse] = useState([])  // latest feature row for every ticker
+  const [loading, setLoading] = useState(false)
 
-  // Keep URL in sync
   useEffect(() => {
-    if (selected.length > 0) setSearchParams({ tickers: selected.join(',') })
-    else setSearchParams({})
+    setSearchParams(selected.length ? { tickers: selected.join(',') } : {})
   }, [selected])
 
-  // Fetch price + features data when selection or range changes
+  // Latest features for all tickers (one bar timestamp), for values + universe percentiles
   useEffect(() => {
-    if (selected.length === 0) { setChartData([]); return }
-
-    async function fetchAll() {
-      setLoadingChart(true)
-      const days = RANGES.find(r => r.label === range)?.days ?? 90
-      const since = new Date()
-      since.setDate(since.getDate() - days)
-
-      // Fetch price data for all selected tickers
-      const priceResults = await Promise.all(
-        selected.map(sym =>
-          supabase
-            .from('stock_clean_data_yf')
-            .select('timestamp,close')
-            .eq('ticker', sym)
-            .eq('interval', '1d')
-            .gte('timestamp', since.toISOString())
-            .order('timestamp', { ascending: true })
-            .then(({ data }) => ({ sym, rows: data ?? [] }))
-        )
-      )
-
-      // Fetch latest features for all selected tickers
-      const featResults = await Promise.all(
-        selected.map(sym =>
-          supabase
-            .from('stock_features')
-            .select('*')
-            .eq('ticker', sym)
-            .eq('interval', '1h')
-            .order('timestamp', { ascending: false })
-            .limit(1)
-            .single()
-            .then(({ data }) => ({ sym, data: data ?? null }))
-        )
-      )
-      const featMap = {}
-      featResults.forEach(({ sym, data }) => { featMap[sym] = data })
-      setFeatures(featMap)
-
-      // Normalize prices to % return from first bar
-      const byDate = {}
-      priceResults.forEach(({ sym, rows }) => {
-        if (!rows.length) return
-        const base = rows[0].close
-        rows.forEach(row => {
-          const d = row.timestamp.slice(0, 10)
-          if (!byDate[d]) byDate[d] = { date: d }
-          byDate[d][sym] = base > 0 ? ((row.close - base) / base) * 100 : 0
-        })
-      })
-
-      const merged = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date))
-      setChartData(merged)
-      setLoadingChart(false)
+    async function load() {
+      const { data: latest } = await supabase.from('stock_features').select('timestamp')
+        .eq('interval', '1h').order('timestamp', { ascending: false }).limit(1)
+      if (!latest?.length) return
+      const { data } = await supabase.from('stock_features').select('*')
+        .eq('interval', '1h').eq('timestamp', latest[0].timestamp)
+      setUniverse(data ?? [])
     }
+    load()
+  }, [])
 
-    fetchAll()
+  // Daily closes for the selected tickers over the chosen range
+  useEffect(() => {
+    if (!selected.length) { setCloses({}); return }
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      const since = new Date()
+      since.setDate(since.getDate() - (RANGES.find(r => r.label === range)?.days ?? 90))
+      const results = await Promise.all(selected.map(sym =>
+        supabase.from('stock_clean_data_yf').select('timestamp,close')
+          .eq('ticker', sym).eq('interval', '1d').gte('timestamp', since.toISOString())
+          .order('timestamp', { ascending: true })
+          .then(({ data }) => [sym, Object.fromEntries((data ?? []).map(r => [r.timestamp.slice(0, 10), r.close]))])))
+      if (!cancelled) { setCloses(Object.fromEntries(results)); setLoading(false) }
+    }
+    load()
+    return () => { cancelled = true }
   }, [selected, range])
 
-  function addTicker(sym) {
-    if (!selected.includes(sym) && selected.length < MAX_TICKERS) {
-      setSelected(prev => [...prev, sym])
-    }
-  }
+  const features = useMemo(
+    () => Object.fromEntries(universe.filter(r => selected.includes(r.ticker)).map(r => [r.ticker, r])),
+    [universe, selected],
+  )
 
-  function removeTicker(sym) {
-    setSelected(prev => prev.filter(s => s !== sym))
+  // % return from the first bar, one row per date
+  const perfData = useMemo(() => {
+    const byDate = {}
+    for (const sym of selected) {
+      const entries = Object.entries(closes[sym] ?? {}).sort(([a], [b]) => a.localeCompare(b))
+      const base = entries[0]?.[1]
+      for (const [d, c] of entries) (byDate[d] ??= { date: d })[sym] = base ? (c / base - 1) * 100 : null
+    }
+    return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date))
+  }, [closes, selected])
+
+  const radarData = useMemo(() => PEER_METRICS.map(m => ({
+    metric: m.label,
+    ...Object.fromEntries(selected.map(sym => [sym, Math.round(percentile(universe, sym, m.key, m.higherBetter) ?? 0)])),
+  })), [universe, selected])
+
+  const corr = useMemo(
+    () => (selected.length > 1 && Object.keys(closes).length === selected.length ? correlationMatrix(closes, selected) : null),
+    [closes, selected],
+  )
+
+  const addTicker = sym => {
+    if (sym && !selected.includes(sym) && selected.length < MAX_TICKERS) setSelected(s => [...s, sym])
   }
+  const removeTicker = sym => setSelected(s => s.filter(x => x !== sym))
+  const colorOf = sym => COLORS[selected.indexOf(sym)]
+
+  const searchItems = allTickers
+    .filter(t => !selected.includes(t.symbol))
+    .map(t => ({ id: t.symbol, label: t.symbol, supportingText: t.name ?? '' }))
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="mx-auto max-w-container px-4 py-6 md:px-8">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <Button size="sm" color="link-gray" iconLeading={ArrowLeft} href="/">Dashboard</Button>
+        <div className="h-5 w-px bg-border-secondary" />
+        <h1 className="text-display-xs font-semibold text-primary">Compare</h1>
+        <span className="text-sm text-tertiary">up to {MAX_TICKERS} tickers</span>
+      </div>
 
-      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8">
-        {/* Page header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" /> Back
-          </button>
-          <div className="w-px h-5 bg-gray-300" />
-          <h1 className="text-2xl font-extrabold text-gray-900">Compare Tickers</h1>
-          <span className="text-sm text-gray-400 font-normal">up to {MAX_TICKERS}</span>
-        </div>
-
-        {/* Ticker pills + search */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          {selected.map((sym, i) => (
-            <div
-              key={sym}
-              className="flex items-center gap-2 px-3 py-1.5 ui-tag border text-sm font-semibold"
-              style={{ borderColor: COLORS[i], color: COLORS[i], background: `${COLORS[i]}12` }}
-            >
-              <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i] }} />
-              {sym}
-              <button
-                onClick={() => removeTicker(sym)}
-                className="ml-1 text-gray-400 hover:text-gray-700 leading-none"
-                aria-label={`Remove ${sym}`}
-              >
-                <XClose className="size-3.5" aria-hidden="true" />
-              </button>
-            </div>
-          ))}
-          {selected.length < MAX_TICKERS && (
-            <div className="w-64">
-              <TickerSearch tickers={allTickers} selected={selected} onAdd={addTicker} />
-            </div>
-          )}
-        </div>
-
-        {selected.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-gray-400">
-            <BarChartSquare02 className="size-12 mb-4 text-gray-300" aria-hidden="true" />
-            <p className="text-lg font-medium text-gray-600">Add tickers above to compare</p>
-            <p className="text-sm mt-1">Search and add up to {MAX_TICKERS} tickers</p>
+      {/* Selected tickers + add */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {selected.map(sym => (
+          <span key={sym} className="inline-flex items-center gap-2 rounded-md bg-primary py-1 pr-1.5 pl-2.5 text-sm font-semibold text-primary ring-1 ring-secondary ring-inset">
+            <span className="size-2.5 rounded-full" style={{ background: colorOf(sym) }} aria-hidden="true" />
+            {sym}
+            <button onClick={() => removeTicker(sym)} aria-label={`Remove ${sym}`}
+              className="rounded p-0.5 text-fg-quaternary hover:bg-primary_hover hover:text-fg-quaternary_hover">
+              <XClose className="size-3.5" aria-hidden="true" />
+            </button>
+          </span>
+        ))}
+        {selected.length < MAX_TICKERS && (
+          <div className="w-64">
+            <Select.ComboBox aria-label="Add ticker" placeholder="Add ticker" size="sm" shortcut={false}
+              items={searchItems} selectedKey={null} onSelectionChange={addTicker}>
+              {item => <Select.Item id={item.id} label={item.label} supportingText={item.supportingText} />}
+            </Select.ComboBox>
           </div>
-        ) : (
-          <>
-            {/* Chart */}
-            <div className="bg-white border border-gray-200 ui-card p-5 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="font-semibold text-gray-800">Relative Performance</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">% return from start of period</p>
-                </div>
-                <div className="flex gap-1">
-                  {RANGES.map(r => (
-                    <button
-                      key={r.label}
-                      onClick={() => setRange(r.label)}
-                      className={`px-2.5 py-1 text-xs font-medium ui-btn transition-colors ${
-                        range === r.label ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
-                      }`}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {loadingChart ? (
-                <div className="h-64 bg-gray-50 ui-tile animate-pulse" />
-              ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={d => fmt(d + 'T00:00:00')}
-                      tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={40}
-                    />
-                    <YAxis
-                      tickFormatter={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`}
-                      tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                      tickLine={false}
-                      axisLine={false}
-                      width={52}
-                    />
-                    <Tooltip content={<NormalizedTooltip />} />
-                    <Legend
-                      formatter={v => <span className="text-xs font-semibold text-gray-700">{v}</span>}
-                    />
-                    {selected.map((sym, i) => (
-                      <Line
-                        key={sym}
-                        type="monotone"
-                        dataKey={sym}
-                        stroke={COLORS[i]}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4, strokeWidth: 0 }}
-                        connectNulls
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            {/* Metrics comparison table */}
-            <div className="bg-white border border-gray-200 ui-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-800">Metrics Comparison</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-40">
-                        Metric
-                      </th>
-                      {selected.map((sym, i) => (
-                        <th key={sym} className="px-4 py-3 text-center">
-                          <span
-                            className="inline-flex items-center gap-1.5 text-sm font-bold"
-                            style={{ color: COLORS[i] }}
-                          >
-                            <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i] }} />
-                            {sym}
-                          </span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {COMPARE_METRICS.map((metric, idx) => (
-                      <tr key={metric.key} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-5 py-2.5 text-xs font-medium text-gray-500">{metric.label}</td>
-                        {selected.map((sym, i) => {
-                          const val = features[sym]?.[metric.key]
-                          return (
-                            <td key={sym} className="px-4 py-2.5 text-center font-semibold text-gray-800">
-                              {formatValue(val, metric.format, metric.decimals)}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
         )}
-      </main>
+      </div>
+
+      {selected.length === 0 ? (
+        <div className={`${CARD} flex flex-col items-center justify-center py-24 text-center`}>
+          <BarChartSquare02 className="mb-4 size-12 text-fg-quaternary" aria-hidden="true" />
+          <p className="text-lg font-medium text-primary">Add tickers to compare</p>
+          <p className="mt-1 text-sm text-tertiary">Search above and add up to {MAX_TICKERS}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <Card title="Relative performance" subtitle="% return from the start of the period"
+            right={
+              <ButtonGroup size="sm" aria-label="Range" disallowEmptySelection selectedKeys={new Set([range])}
+                onSelectionChange={keys => { const k = [...keys][0]; if (k) setRange(k) }}>
+                {RANGES.map(r => <ButtonGroupItem key={r.label} id={r.label}>{r.label}</ButtonGroupItem>)}
+              </ButtonGroup>
+            }>
+            {loading ? <div className="h-72 animate-pulse rounded-lg bg-secondary" /> : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={perfData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} className={chartClass}>
+                  <CartesianGrid vertical={false} stroke="currentColor" className="text-utility-neutral-100" />
+                  <XAxis dataKey="date" tickFormatter={fmtDate} axisLine={false} tickLine={false} fill="currentColor" minTickGap={60} />
+                  <YAxis tickFormatter={v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} axisLine={false} tickLine={false} fill="currentColor" width={52} />
+                  <Tooltip content={<ChartTooltipContent />} labelFormatter={fmtDate}
+                    formatter={v => `${v >= 0 ? '+' : ''}${Number(v).toFixed(2)}%`} />
+                  {selected.map(sym => (
+                    <Line key={sym} type="monotone" dataKey={sym} stroke={colorOf(sym)} strokeWidth={2} dot={false} connectNulls />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Card>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card title="Profile" subtitle="Percentile vs. all tracked stocks (100 = best)">
+              <ResponsiveContainer width="100%" height={320}>
+                <RadarChart data={radarData} outerRadius="70%" className={chartClass}>
+                  <PolarGrid stroke="currentColor" className="text-utility-neutral-200" />
+                  <PolarAngleAxis dataKey="metric" fill="currentColor" />
+                  <Tooltip content={<ChartTooltipContent />} formatter={v => `${v}th percentile`} />
+                  {selected.map(sym => (
+                    <Radar key={sym} dataKey={sym} stroke={colorOf(sym)} fill={colorOf(sym)} fillOpacity={0.12} strokeWidth={2} />
+                  ))}
+                </RadarChart>
+              </ResponsiveContainer>
+            </Card>
+
+            <Card title="Return correlation" subtitle={`Daily returns over ${range}; 1 = move together, −1 = opposite`}>
+              {selected.length < 2 ? (
+                <p className="py-16 text-center text-sm text-tertiary">Add a second ticker to see correlations</p>
+              ) : !corr ? (
+                <div className="h-64 animate-pulse rounded-lg bg-secondary" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="mx-auto border-separate border-spacing-1 text-sm">
+                    <thead>
+                      <tr>
+                        <th />
+                        {selected.map(s => <th key={s} className="px-2 pb-1 text-xs font-semibold text-tertiary">{s}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selected.map((a, i) => (
+                        <tr key={a}>
+                          <th className="pr-2 text-right text-xs font-semibold text-tertiary">{a}</th>
+                          {selected.map((b, j) => (
+                            <td key={b} className="size-16 rounded-md text-center font-semibold text-primary tabular-nums"
+                              style={{ background: heatColor(corr[i][j]) }}
+                              title={`${a} vs ${b}`}>
+                              {corr[i][j] == null ? '—' : corr[i][j].toFixed(2)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <Card title="Metrics at a glance" subtitle="Latest values, one chart per metric">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3 xl:grid-cols-4">
+              {COMPARE_METRICS.map(m => {
+                const scale = m.format === 'percent' ? 100 : 1
+                const data = selected.map(sym => ({ sym, value: features[sym]?.[m.key] != null ? features[sym][m.key] * scale : null }))
+                return (
+                  <div key={m.key}>
+                    <p className="mb-1 text-sm font-medium text-secondary">{m.label}</p>
+                    <ResponsiveContainer width="100%" height={110}>
+                      <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} className={chartClass}>
+                        <XAxis dataKey="sym" axisLine={false} tickLine={false} fill="currentColor" interval={0} />
+                        <YAxis hide domain={['auto', 'auto']} />
+                        <Tooltip cursor={{ className: 'fill-utility-neutral-50' }} content={<ChartTooltipContent />}
+                          formatter={v => formatValue(v / scale, m.format, m.decimals)} />
+                        <Bar dataKey="value" name={m.label} radius={[3, 3, 0, 0]} maxBarSize={28}>
+                          {data.map(d => <Cell key={d.sym} fill={colorOf(d.sym)} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+
+          <TableCard.Root size="sm">
+            <TableCard.Header title="Metrics" description="Exact latest values" />
+            <div className="overflow-x-auto">
+              <Table aria-label="Metrics comparison">
+                <Table.Header>
+                  <Table.Head id="metric" label="Metric" isRowHeader />
+                  {selected.map(sym => <Table.Head key={sym} id={sym} label={sym} />)}
+                </Table.Header>
+                <Table.Body items={COMPARE_METRICS.map(m => ({ ...m, id: m.key }))} dependencies={[selected, features]}>
+                  {m => (
+                    <Table.Row id={m.key}>
+                      <Table.Cell className="text-secondary">{m.label}</Table.Cell>
+                      {selected.map(sym => (
+                        <Table.Cell key={sym} className="whitespace-nowrap font-medium text-primary tabular-nums">
+                          {formatValue(features[sym]?.[m.key], m.format, m.decimals)}
+                        </Table.Cell>
+                      ))}
+                    </Table.Row>
+                  )}
+                </Table.Body>
+              </Table>
+            </div>
+          </TableCard.Root>
+        </div>
+      )}
     </div>
   )
 }
