@@ -16,16 +16,6 @@ export const SECTOR_BADGE_COLOR = {
   'ETF':                    'brand',
 }
 
-export const SECTION_COLORS = {
-  blue:    { borderColor: 'border-blue-500',    headerBg: 'bg-blue-50',    accentText: 'text-blue-700' },
-  violet:  { borderColor: 'border-violet-500',  headerBg: 'bg-violet-50',  accentText: 'text-violet-700' },
-  emerald: { borderColor: 'border-emerald-500', headerBg: 'bg-emerald-50', accentText: 'text-emerald-700' },
-  rose:    { borderColor: 'border-rose-500',    headerBg: 'bg-rose-50',    accentText: 'text-rose-700' },
-  amber:   { borderColor: 'border-amber-500',   headerBg: 'bg-amber-50',   accentText: 'text-amber-700' },
-  indigo:  { borderColor: 'border-indigo-500',  headerBg: 'bg-indigo-50',  accentText: 'text-indigo-700' },
-  slate:   { borderColor: 'border-slate-500',   headerBg: 'bg-slate-50',   accentText: 'text-slate-700' },
-}
-
 // Field keys match the columns written by data/features.py (compute_features_df).
 // Percent fields are stored as fractions (0.12 = 12%).
 // higherBetter: true/false drives sector rank badges; null = no rank.

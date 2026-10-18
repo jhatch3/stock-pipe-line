@@ -76,7 +76,7 @@ function PriceTooltip({ active, payload, showBB, showVWAP, showSMA50, showSMA200
     showSMA200&& d.sma200!= null && ['SMA200',d.sma200],
   ].filter(Boolean)
   return (
-    <div className="bg-white border border-gray-200 ui-tile shadow-lg p-3 text-xs min-w-[170px]">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs min-w-[170px]">
       <p className="font-semibold text-gray-600 mb-2">{fmtDate(d.timestamp, interval)}</p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-gray-600">
         <span>O</span><span className="text-right font-medium">${Number(d.open).toFixed(2)}</span>
@@ -104,7 +104,7 @@ function VolumeTooltip({ active, payload, interval }) {
   const d = payload[0]?.payload
   if (!d) return null
   return (
-    <div className="bg-white border border-gray-200 ui-btn shadow-md px-2.5 py-1.5 text-xs">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-2.5 py-1.5 text-xs">
       <p className="text-gray-400 mb-0.5">{fmtDate(d.timestamp, interval)}</p>
       <span className="font-semibold text-gray-800">Vol {fmtVol(Number(d.volume))}</span>
     </div>
@@ -117,7 +117,7 @@ function RSITooltip({ active, payload, interval }) {
   const d = payload[0]?.payload
   const color = v > 70 ? '#EF4444' : v < 30 ? '#10B981' : '#8B5CF6'
   return (
-    <div className="bg-white border border-gray-200 ui-btn shadow-md px-2.5 py-1.5 text-xs">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-2.5 py-1.5 text-xs">
       {d && <p className="text-gray-400 mb-0.5">{fmtDate(d.timestamp, interval)}</p>}
       <span className="font-semibold" style={{ color }}>RSI {v.toFixed(1)}</span>
     </div>
@@ -129,7 +129,7 @@ function MACDTooltip({ active, payload, interval }) {
   const row = payload[0]?.payload
   if (!row) return null
   return (
-    <div className="bg-white border border-gray-200 ui-btn shadow-md px-3 py-2 text-xs space-y-0.5">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-3 py-2 text-xs space-y-0.5">
       <p className="text-gray-400 mb-1">{fmtDate(row.timestamp, interval)}</p>
       {row.macd        != null && <p><span className="text-blue-600 font-semibold">MACD </span>{Number(row.macd).toFixed(4)}</p>}
       {row.macd_signal != null && <p><span className="text-orange-500 font-semibold">Sig  </span>{Number(row.macd_signal).toFixed(4)}</p>}
@@ -338,10 +338,10 @@ export default function PriceChart({ ticker }) {
     <div className="space-y-3">
       <div className={`${CARD} p-5`}>
         <div className="h-8 w-64 bg-gray-100 rounded-sm animate-pulse mb-3" />
-        <div className="h-[320px] bg-gray-50 ui-tile animate-pulse" />
+        <div className="h-[320px] bg-gray-50 rounded-lg animate-pulse" />
       </div>
       <div className={`${CARD} p-5`}>
-        <div className="h-[160px] bg-gray-50 ui-tile animate-pulse" />
+        <div className="h-[160px] bg-gray-50 rounded-lg animate-pulse" />
       </div>
     </div>
   )
