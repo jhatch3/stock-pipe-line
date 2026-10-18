@@ -1,5 +1,6 @@
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { useSpyIndicators, SmaFigure, BollingerFigure, RsiFigure, MacdFigure, VwapFigure } from '../components/PaperFigures.jsx'
 
 // Indicator reference typeset as a LaTeX-style paper. Formulas match
 // src/lib/indicators.js (chart overlays) and data/features.py (stored metrics).
@@ -78,6 +79,7 @@ const SECTIONS = [
 const R = String.raw
 
 export default function Indicators() {
+  const spy = useSpyIndicators()
 
   // Equations are numbered in render order, like LaTeX's \begin{equation}
   let eqn = 0
@@ -158,6 +160,7 @@ export default function Indicators() {
               and <M>{R`\mathrm{SMA}_{200}`}</M> (long-term trend, about forty weeks). Each requires <M>{R`n`}</M> bars
               of history before its first value, which is why extra history is fetched for warm-up.
             </p>
+            <SmaFigure n={1} rows={spy} />
             <Remark title="Interpretation">
               Price above its moving average indicates an uptrend over that horizon; a moving average acting as
               support during pullbacks confirms the trend. The crossing of <M>{R`\mathrm{SMA}_{50}`}</M> above
@@ -179,6 +182,7 @@ export default function Indicators() {
             {eq(R`\sigma_t = \sqrt{\frac{1}{n-1} \sum_{i=0}^{n-1} \left(P_{t-i} - M_t\right)^2 } .`)}
             <p>The bands and their relative width are</p>
             {eq(R`U_t = M_t + k\,\sigma_t, \qquad L_t = M_t - k\,\sigma_t, \qquad \mathrm{BW}_t = \frac{U_t - L_t}{M_t} .`)}
+            <BollingerFigure n={2} rows={spy} />
             <Remark title="Interpretation">
               The bands widen when volatility rises and contract when it falls. A close near <M>{R`U_t`}</M> marks
               the top of the recent range and a close near <M>{R`L_t`}</M> the bottom. An unusually small
@@ -199,6 +203,7 @@ export default function Indicators() {
             {eq(R`\overline{G}_t = \frac{(n-1)\,\overline{G}_{t-1} + G_t}{n}, \qquad \overline{D}_t = \frac{(n-1)\,\overline{D}_{t-1} + D_t}{n},`)}
             <p>initialized with simple averages over the first <M>{R`n`}</M> changes. Then</p>
             {eq(R`\mathrm{RS}_t = \frac{\overline{G}_t}{\overline{D}_t}, \qquad \mathrm{RSI}_t = 100 - \frac{100}{1 + \mathrm{RS}_t} \in [0, 100] .`)}
+            <RsiFigure n={3} rows={spy} />
             <Remark title="Interpretation">
               The conventional thresholds are:
             </Remark>
@@ -221,6 +226,7 @@ export default function Indicators() {
             </Definition>
             {eq(R`\mathrm{MACD}_t = \mathrm{EMA}_{12}(t) - \mathrm{EMA}_{26}(t),`)}
             {eq(R`\mathrm{Signal}_t = \mathrm{EMA}_{9}\!\left(\mathrm{MACD}\right)(t), \qquad \mathrm{Hist}_t = \mathrm{MACD}_t - \mathrm{Signal}_t .`)}
+            <MacdFigure n={4} rows={spy} />
             <Remark title="Interpretation">
               The MACD line crossing above its signal line is a bullish crossover, and crossing below is bearish.
               A growing histogram shows momentum building in the direction of the bars. A cross of the MACD line
@@ -244,6 +250,7 @@ export default function Indicators() {
               On hourly bars the sum resets at each session. On daily bars, where a session is a single bar,
               charts use a rolling 20-bar window in place of <M>{R`\mathcal{S}(t)`}</M>.
             </p>
+            <VwapFigure n={5} rows={spy} />
             <Remark title="Interpretation">
               VWAP is the average price paid per share, and institutions use it as an execution benchmark. Price
               above VWAP suggests buyers are in control; below, sellers. Intraday, price often reverts to VWAP,
