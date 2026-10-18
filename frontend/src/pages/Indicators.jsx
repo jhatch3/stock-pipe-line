@@ -94,14 +94,13 @@ export default function Indicators() {
             <h1 className="text-[1.9rem] leading-tight mb-4">
               Technical Indicators and Risk Metrics:<br />Definitions and Interpretation
             </h1>
-            <p className="text-[1.05rem]">StockIQ Research</p>
-            <p className="text-[1.05rem] mt-1">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <p className="text-[1.05rem]">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </header>
 
           <div className="mx-auto max-w-[620px] mb-10">
             <p className="text-center font-bold text-sm mb-2">Abstract</p>
             <p className="text-[0.95rem] leading-relaxed text-justify">
-              This note collects the definitions of every indicator plotted on StockIQ charts and every
+              This note collects the definitions of every indicator plotted on the charts and every
               metric stored in the feature table. For each quantity we give a precise formula, the parameters
               used in this system, and a short account of how it is read in practice, together with its known
               limitations. Technical indicators are computed per bar from closing prices; risk and

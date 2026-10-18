@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Stars02 } from '@untitledui/icons'
 import { supabase } from '../lib/supabase.js'
 
 export default function AgentPanel({ ticker }) {
@@ -31,7 +32,7 @@ export default function AgentPanel({ ticker }) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-l-4 border-blue-500 bg-blue-50">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🤖</span>
+          <Stars02 className="size-5 text-blue-600" aria-hidden="true" />
           <h3 className="font-semibold text-gray-900 text-sm">AI Analysis</h3>
           <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 ui-tag font-medium">GPT-4o mini</span>
         </div>

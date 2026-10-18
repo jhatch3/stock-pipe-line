@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { AlertTriangle, ArrowLeft, SwitchHorizontal01, TrendUp01, TrendDown01, Inbox01 } from '@untitledui/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { FEATURE_SECTIONS } from '../lib/constants.js'
@@ -145,11 +146,11 @@ export default function TickerDetail() {
   if (error) return (
     <div className="min-h-screen bg-white">
       <div className="flex flex-col items-center justify-center py-32 text-gray-400">
-        <span className="text-5xl mb-4">⚠️</span>
+        <AlertTriangle className="size-12 mb-4 text-warning-500" aria-hidden="true" />
         <p className="text-lg font-medium text-gray-700">{error}</p>
         <button onClick={() => navigate('/')}
-          className="mt-6 px-5 py-2 bg-gray-900 text-white ui-tile text-sm font-medium hover:bg-gray-700 transition-colors">
-          ← Back to Dashboard
+          className="mt-6 flex items-center gap-1.5 px-5 py-2 bg-gray-900 text-white ui-tile text-sm font-medium hover:bg-gray-700 transition-colors">
+          <ArrowLeft className="size-4" aria-hidden="true" /> Back to Dashboard
         </button>
       </div>
     </div>
@@ -168,7 +169,7 @@ export default function TickerDetail() {
         <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <button onClick={() => navigate('/')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
-            ← Back
+            <ArrowLeft className="size-4" aria-hidden="true" /> Back
           </button>
           <div className="w-px h-5 bg-gray-300" />
           <span className="text-2xl font-extrabold text-gray-900 tracking-tight">{ticker?.symbol}</span>
@@ -178,7 +179,7 @@ export default function TickerDetail() {
             {lastUpdated && <span className="text-xs text-gray-400 hidden md:block">Updated {lastUpdated}</span>}
             <button onClick={() => navigate(`/compare?tickers=${symbol}`)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-300 ui-btn text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors">
-              ⇄ Compare
+              <SwitchHorizontal01 className="size-3.5" aria-hidden="true" /> Compare
             </button>
           </div>
         </div>
@@ -200,7 +201,7 @@ export default function TickerDetail() {
           </span>
           {changePct !== null && (
             <span className={`flex items-center gap-1.5 text-lg font-semibold ${up ? 'text-emerald-600' : 'text-rose-600'}`}>
-              <span>{up ? '▲' : '▼'}</span>
+              {up ? <TrendUp01 className="size-5" aria-hidden="true" /> : <TrendDown01 className="size-5" aria-hidden="true" />}
               <span>{up ? '+' : ''}{Number(change).toFixed(2)}</span>
               <span className="text-base font-medium opacity-80">({up ? '+' : ''}{changePct.toFixed(2)}%)</span>
             </span>
@@ -216,7 +217,7 @@ export default function TickerDetail() {
         {/* Feature sections with sector ranks */}
         {!features ? (
           <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-            <span className="text-5xl mb-4">📭</span>
+            <Inbox01 className="size-12 mb-4 text-gray-300" aria-hidden="true" />
             <p className="text-lg font-medium text-gray-700">No features data yet</p>
             <p className="text-sm mt-1 text-gray-400">
               Run <code className="bg-gray-100 px-1 rounded-sm">pipeline_features.py</code> to generate features for <strong>{symbol}</strong>.

@@ -8,7 +8,7 @@ export default function FeatureSection({ section, data, ranks }) {
       {/* Header */}
       <div className={`flex items-center justify-between px-5 py-4 border-l-4 ${colors.borderColor} ${colors.headerBg}`}>
         <div className="flex items-center gap-2">
-          <span className="text-lg">{section.icon}</span>
+          <section.icon className={`size-5 ${colors.accentText}`} aria-hidden="true" />
           <h3 className="font-semibold text-gray-900 text-sm">{section.title}</h3>
         </div>
         {section.description && (

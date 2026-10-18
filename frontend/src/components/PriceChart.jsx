@@ -57,9 +57,9 @@ function PriceTooltip({ active, payload, showBB, showVWAP, showSMA50, showSMA200
   const d = payload[0]?.payload
   if (!d) return null
   const extras = [
-    showBB && d.bb_upper != null && ['BB↑', d.bb_upper],
-    showBB && d.bb_middle!= null && ['BB—', d.bb_middle],
-    showBB && d.bb_lower != null && ['BB↓', d.bb_lower],
+    showBB && d.bb_upper != null && ['BB upper', d.bb_upper],
+    showBB && d.bb_middle!= null && ['BB mid', d.bb_middle],
+    showBB && d.bb_lower != null && ['BB lower', d.bb_lower],
     showVWAP  && d.vwap  != null && ['VWAP',  d.vwap],
     showSMA50 && d.sma50 != null && ['SMA50', d.sma50],
     showSMA200&& d.sma200!= null && ['SMA200',d.sma200],

@@ -3,11 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, useHref, useNavigate } from 'react-router-dom'
 import { RouterProvider } from 'react-aria-components'
 import App from './App.jsx'
-import { applyTheme, getInitialTheme } from './lib/theme.js'
 import './index.css'
-
-// Apply the theme before first paint to avoid a light/dark flash
-applyTheme(getInitialTheme())
 
 // Route react-aria links (Untitled UI nav items, buttons with href) through react-router
 function AriaRouter({ children }) {

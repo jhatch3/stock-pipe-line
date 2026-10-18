@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Building07, ArrowUp, ArrowDown } from '@untitledui/icons'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { formatValue } from '../lib/constants.js'
@@ -95,7 +96,7 @@ export default function SectorCompareTable({ symbol, sector }) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🏢</span>
+          <Building07 className="size-5 text-gray-500" aria-hidden="true" />
           <h3 className="font-semibold text-gray-900 text-sm">Sector Comparison</h3>
           <SectorBadge sector={sector} />
         </div>
@@ -125,7 +126,9 @@ export default function SectorCompareTable({ symbol, sector }) {
                   >
                     {col.label}
                     {sortKey === col.key && (
-                      <span className="ml-1 text-gray-400">{sortAsc ? '↑' : '↓'}</span>
+                      sortAsc
+                        ? <ArrowUp className="ml-1 inline size-3.5 text-gray-400" aria-hidden="true" />
+                        : <ArrowDown className="ml-1 inline size-3.5 text-gray-400" aria-hidden="true" />
                     )}
                   </th>
                 ))}

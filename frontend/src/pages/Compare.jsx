@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { SearchLg, ArrowLeft, XClose, BarChartSquare02 } from '@untitledui/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -88,7 +89,7 @@ function TickerSearch({ tickers, selected, onAdd }) {
   return (
     <div ref={ref} className="relative">
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔍</span>
+        <SearchLg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" aria-hidden="true" />
         <input
           type="text"
           placeholder="Add ticker to compare…"
@@ -218,9 +219,9 @@ export default function Compare() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate('/')}
-            className="text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
           >
-            ← Back
+            <ArrowLeft className="size-4" aria-hidden="true" /> Back
           </button>
           <div className="w-px h-5 bg-gray-300" />
           <h1 className="text-2xl font-extrabold text-gray-900">Compare Tickers</h1>
@@ -240,8 +241,9 @@ export default function Compare() {
               <button
                 onClick={() => removeTicker(sym)}
                 className="ml-1 text-gray-400 hover:text-gray-700 leading-none"
+                aria-label={`Remove ${sym}`}
               >
-                ×
+                <XClose className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           ))}
@@ -254,7 +256,7 @@ export default function Compare() {
 
         {selected.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-gray-400">
-            <span className="text-5xl mb-4">📊</span>
+            <BarChartSquare02 className="size-12 mb-4 text-gray-300" aria-hidden="true" />
             <p className="text-lg font-medium text-gray-600">Add tickers above to compare</p>
             <p className="text-sm mt-1">Search and add up to {MAX_TICKERS} tickers</p>
           </div>

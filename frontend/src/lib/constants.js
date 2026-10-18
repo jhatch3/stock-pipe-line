@@ -1,3 +1,5 @@
+import { TrendUp01, Scales02, Compass03, CurrencyDollarCircle, Bank } from '@untitledui/icons'
+
 // Untitled UI Badge color per sector (yfinance sector names)
 export const SECTOR_BADGE_COLOR = {
   'Technology':             'blue',
@@ -29,7 +31,7 @@ export const SECTION_COLORS = {
 // higherBetter: true/false drives sector rank badges; null = no rank.
 export const FEATURE_SECTIONS = [
   {
-    id: 'technical', title: 'Technical Indicators', icon: '📈', color: 'violet',
+    id: 'technical', title: 'Technical Indicators', icon: TrendUp01, color: 'violet',
     description: 'RSI, MACD, Bollinger Bands, VWAP',
     fields: [
       { key: 'rsi',            label: 'RSI (14)',        format: 'number',   decimals: 1, higherBetter: null },
@@ -45,7 +47,7 @@ export const FEATURE_SECTIONS = [
     ],
   },
   {
-    id: 'risk', title: 'Risk & Return', icon: '⚖️', color: 'rose',
+    id: 'risk', title: 'Risk & Return', icon: Scales02, color: 'rose',
     description: 'Rolling volatility and risk-adjusted returns',
     fields: [
       { key: 'volatility',    label: 'Volatility (Ann.)', format: 'percent', decimals: 2, higherBetter: false },
@@ -58,7 +60,7 @@ export const FEATURE_SECTIONS = [
     ],
   },
   {
-    id: 'market', title: 'Market Relative', icon: '🧭', color: 'blue',
+    id: 'market', title: 'Market Relative', icon: Compass03, color: 'blue',
     description: 'vs. SPY benchmark',
     fields: [
       { key: 'beta',              label: 'Beta',              format: 'number',  decimals: 2, higherBetter: null },
@@ -69,7 +71,7 @@ export const FEATURE_SECTIONS = [
     ],
   },
   {
-    id: 'valuation', title: 'Valuation', icon: '💰', color: 'amber',
+    id: 'valuation', title: 'Valuation', icon: CurrencyDollarCircle, color: 'amber',
     description: 'Price multiples',
     fields: [
       { key: 'pe_ratio',   label: 'P/E (TTM)',  format: 'number',   decimals: 1, higherBetter: false },
@@ -83,7 +85,7 @@ export const FEATURE_SECTIONS = [
     ],
   },
   {
-    id: 'fundamentals', title: 'Profitability & Health', icon: '🏦', color: 'emerald',
+    id: 'fundamentals', title: 'Profitability & Health', icon: Bank, color: 'emerald',
     description: 'Returns, margins, leverage',
     fields: [
       { key: 'roe',                     label: 'ROE',               format: 'percent', decimals: 2, higherBetter: true  },

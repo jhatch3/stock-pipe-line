@@ -1,15 +1,11 @@
-// UI: Untitled UI header navigation, combobox, button —
+// UI: Untitled UI header navigation, combobox —
 //   https://www.untitledui.com/react/components/header-navigations
 //   https://www.untitledui.com/react/components/select
-//   https://www.untitledui.com/react/components/buttons
 import { createContext, useContext, useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LineChartUp03, Moon01, Sun } from '@untitledui/icons'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { HeaderNavigationBase } from '@/components/application/app-navigation/header-navigation'
-import { Button } from '@/components/base/buttons/button'
 import { Select } from '@/components/base/select/select'
 import { supabase } from '../lib/supabase.js'
-import { getInitialTheme, applyTheme, saveTheme } from '../lib/theme.js'
 
 // Ticker universe (symbol, name, sector), fetched once and shared by every page
 const TickersContext = createContext([])
@@ -20,17 +16,6 @@ const NAV_ITEMS = [
   { label: 'Compare',    href: '/compare' },
   { label: 'Indicators', href: '/indicators' },
 ]
-
-function Logo() {
-  return (
-    <Link to="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-brand-solid text-white">
-        <LineChartUp03 className="size-5" />
-      </span>
-      StockIQ
-    </Link>
-  )
-}
 
 function TickerSearch({ tickers }) {
   const navigate = useNavigate()
@@ -50,20 +35,6 @@ function TickerSearch({ tickers }) {
   )
 }
 
-function ThemeToggle() {
-  const [theme, setTheme] = useState(getInitialTheme)
-  useEffect(() => { applyTheme(theme); saveTheme(theme) }, [theme])
-  const dark = theme === 'dark'
-  return (
-    <Button
-      size="sm"
-      color="tertiary"
-      iconLeading={dark ? Sun : Moon01}
-      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-      onPress={() => setTheme(dark ? 'light' : 'dark')}
-    />
-  )
-}
 
 export default function AppShell({ children }) {
   const { pathname } = useLocation()
@@ -81,19 +52,9 @@ export default function AppShell({ children }) {
           <HeaderNavigationBase
             activeUrl={pathname}
             items={NAV_ITEMS}
-            logo={<Logo />}
-            actions={
-              <>
-                <div className="w-72"><TickerSearch tickers={tickers} /></div>
-                <ThemeToggle />
-              </>
-            }
-            mobileContent={
-              <>
-                <TickerSearch tickers={tickers} />
-                <ThemeToggle />
-              </>
-            }
+            logo={false}
+            actions={<div className="w-72"><TickerSearch tickers={tickers} /></div>}
+            mobileContent={<TickerSearch tickers={tickers} />}
           />
         </div>
         <main className="min-w-0 flex-1">{children}</main>
