@@ -128,37 +128,39 @@ export default function TickerDetail() {
   const peers       = sectorFeatures
 
   return (
-    <div className="mx-auto max-w-container px-4 py-6 md:px-8">
+    <div className="flex flex-col xl:flex-row">
 
-      {/* Title row */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Button size="sm" color="link-gray" iconLeading={ArrowLeft} href="/">Dashboard</Button>
-        <div className="h-5 w-px bg-border-secondary" />
-        <h1 className="text-display-xs font-semibold text-primary">{ticker?.symbol}</h1>
-        {ticker?.name && <span className="hidden text-lg text-tertiary sm:block">{ticker.name}</span>}
-        <SectorBadge sector={ticker?.sector} size="md" />
-        <div className="ml-auto flex items-center gap-3">
-          {lastUpdated && <span className="hidden text-xs text-quaternary md:block">Features updated {lastUpdated}</span>}
-          <Button size="sm" color="secondary" iconLeading={SwitchHorizontal01} href={`/compare?tickers=${symbol}`}>Compare</Button>
-        </div>
-      </div>
+      {/* ── Main feed ─────────────────────────────────────────────────────── */}
+      <div className="min-w-0 flex-1 bg-secondary px-4 py-6 md:px-8 xl:min-h-[calc(100dvh-4rem)]">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6">
 
-      {/* Price */}
-      <div className="mb-4 flex flex-wrap items-baseline gap-3">
-        <span className="text-display-md font-semibold text-primary tabular-nums">{fmtPrice(close)}</span>
-        {change !== null && (
-          <span className="flex items-baseline gap-2">
-            <PriceChange value={changeFrac} size="lg" />
-            <span className={`text-md font-medium tabular-nums ${change >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              ({change >= 0 ? '+' : ''}{change.toFixed(2)})
-            </span>
-          </span>
-        )}
-        <span className="text-xs text-quaternary">daily close · 1D change</span>
-      </div>
+          {/* Title + price */}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="sm" color="link-gray" iconLeading={ArrowLeft} href="/">Dashboard</Button>
+              <div className="h-5 w-px bg-border-primary" />
+              <h1 className="text-display-xs font-semibold text-primary">{ticker?.symbol}</h1>
+              {ticker?.name && <span className="hidden text-lg text-tertiary sm:block">{ticker.name}</span>}
+              <SectorBadge sector={ticker?.sector} size="md" />
+              <div className="ml-auto flex items-center gap-3">
+                {lastUpdated && <span className="hidden text-xs text-quaternary md:block">Features updated {lastUpdated}</span>}
+                <Button size="sm" color="secondary" iconLeading={SwitchHorizontal01} href={`/compare?tickers=${symbol}`}>Compare</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-display-md font-semibold text-primary tabular-nums">{fmtPrice(close)}</span>
+              {change !== null && (
+                <span className="flex items-baseline gap-2">
+                  <PriceChange value={changeFrac} size="lg" />
+                  <span className={`text-md font-medium tabular-nums ${change >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    ({change >= 0 ? '+' : ''}{change.toFixed(2)})
+                  </span>
+                </span>
+              )}
+              <span className="text-xs text-quaternary">daily close · 1D change</span>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex min-w-0 flex-col gap-6">
           <PriceChart ticker={symbol} />
           <AgentPanel ticker={symbol} />
 
@@ -196,20 +198,17 @@ export default function TickerDetail() {
               <MetricsTables features={features} peers={peers} symbol={symbol} />
             </>
           )}
+
+          {ticker?.sector && <SectorCompareTable symbol={symbol} sector={ticker.sector} peers={peers} />}
         </div>
-
-        {/* Right rail: follows the scroll on wide screens */}
-        <aside className="flex flex-col gap-6 xl:sticky xl:top-22 xl:h-[calc(100dvh-7rem)]">
-          <KeyStats daily={daily} features={features} />
-          <NewsFeed ticker={symbol} />
-        </aside>
-
-        {ticker?.sector && (
-          <div className="xl:col-span-2">
-            <SectorCompareTable symbol={symbol} sector={ticker.sector} peers={peers} />
-          </div>
-        )}
       </div>
+
+      {/* ── Right rail: pinned to the window's right edge, scrolls on its own ── */}
+      <aside className="flex shrink-0 flex-col divide-y divide-secondary border-t border-secondary bg-primary
+        xl:sticky xl:top-16 xl:h-[calc(100dvh-4rem)] xl:w-96 xl:overflow-y-auto xl:border-t-0 xl:border-l">
+        <KeyStats daily={daily} features={features} flat />
+        <NewsFeed ticker={symbol} flat />
+      </aside>
     </div>
   )
 }

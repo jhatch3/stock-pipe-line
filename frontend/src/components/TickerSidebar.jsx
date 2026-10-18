@@ -7,9 +7,10 @@ import { CARD, fmtPrice } from '../lib/ui.js'
 
 const YEAR_BARS = 252
 
-function RailCard({ title, subtitle, children, large }) {
+// `flat` drops the card chrome for use inside the right rail
+function RailCard({ title, subtitle, children, large, flat }) {
   return (
-    <section className={`${CARD} p-5`}>
+    <section className={flat ? 'p-6' : `${CARD} p-5`}>
       <h2 className={`${large ? 'text-lg' : 'text-md'} font-semibold text-primary`}>{title}</h2>
       {subtitle && <p className="text-xs text-tertiary">{subtitle}</p>}
       <div className="mt-4">{children}</div>
@@ -29,7 +30,7 @@ function Row({ label, children }) {
 const back = (closes, n) => (closes.length > n ? closes[closes.length - 1] / closes[closes.length - 1 - n] - 1 : null)
 
 // ── Key stats ────────────────────────────────────────────────────────────────
-export function KeyStats({ daily, features }) {
+export function KeyStats({ daily, features, flat }) {
   if (!daily.length) return null
   const year = daily.slice(-YEAR_BARS)
   const last = daily[daily.length - 1]
@@ -53,7 +54,7 @@ export function KeyStats({ daily, features }) {
   const fmtVol = v => (v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${(v / 1e3).toFixed(0)}K`)
 
   return (
-    <RailCard title="Key stats">
+    <RailCard title="Key stats" flat={flat}>
       <p className="mb-2 text-xs font-medium text-tertiary">52-week range</p>
       <div className="relative h-1.5 rounded-full bg-secondary">
         <div className="absolute inset-y-0 left-0 rounded-full bg-brand-solid" style={{ width: `${pos}%` }} />

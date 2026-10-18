@@ -21,7 +21,8 @@ function timeAgo(ts) {
   return days < 30 ? `${days}d ago` : new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function NewsFeed({ ticker }) {
+// `flat` drops the card chrome for use inside the right rail
+export default function NewsFeed({ ticker, flat }) {
   const [items, setItems] = useState(null)
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function NewsFeed({ ticker }) {
   }, [ticker])
 
   return (
-    <section className={`${CARD} flex min-h-0 flex-1 flex-col p-5`}>
+    <section className={flat ? 'p-6' : `${CARD} p-5`}>
       <h2 className="text-md font-semibold text-primary">Latest news</h2>
       <p className="mb-2 text-xs text-tertiary">From Alpaca news, newest first</p>
 
@@ -48,7 +49,7 @@ export default function NewsFeed({ ticker }) {
           <p className="text-sm">No news for {ticker} yet</p>
         </div>
       ) : (
-        <ul className="-mx-2 flex min-h-0 flex-col divide-y divide-secondary xl:flex-1 xl:overflow-y-auto">
+        <ul className="-mx-2 flex flex-col divide-y divide-secondary">
           {items.map(n => (
             <li key={n.id}>
               <a href={n.url} target="_blank" rel="noreferrer"
