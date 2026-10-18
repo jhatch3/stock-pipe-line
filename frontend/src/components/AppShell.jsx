@@ -40,6 +40,9 @@ export default function AppShell({ children }) {
   const { pathname } = useLocation()
   const [tickers, setTickers] = useState([])
 
+  // Start each page at the top (react-router keeps the previous scroll position)
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+
   useEffect(() => {
     supabase.from('tickers').select('symbol,name,sector').order('symbol')
       .then(({ data }) => { if (data) setTickers(data) })
