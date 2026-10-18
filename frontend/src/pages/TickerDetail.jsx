@@ -128,11 +128,11 @@ export default function TickerDetail() {
   const peers       = sectorFeatures
 
   return (
-    <div className="flex flex-col xl:flex-row">
+    <div className="mx-auto flex max-w-container flex-col gap-6 px-4 py-6 md:px-8 xl:flex-row xl:items-start">
 
       {/* ── Main feed ─────────────────────────────────────────────────────── */}
-      <div className="min-w-0 flex-1 bg-secondary px-4 py-6 md:px-8 xl:min-h-[calc(100dvh-4rem)]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <div className="min-w-0 flex-1 rounded-2xl bg-secondary p-4 md:p-6">
+        <div className="flex flex-col gap-6">
 
           {/* Title + price */}
           <div className="flex flex-col gap-3">
@@ -203,9 +203,9 @@ export default function TickerDetail() {
         </div>
       </div>
 
-      {/* ── Right rail: pinned to the window's right edge, scrolls on its own ── */}
-      <aside className="flex shrink-0 flex-col divide-y divide-secondary border-t border-secondary bg-primary
-        xl:sticky xl:top-16 xl:h-[calc(100dvh-4rem)] xl:w-96 xl:overflow-y-auto xl:border-t-0 xl:border-l">
+      {/* ── Right rail: beside the feed, stays in view while scrolling ──────── */}
+      <aside className={`${CARD} flex shrink-0 flex-col divide-y divide-secondary overflow-hidden
+        xl:sticky xl:top-22 xl:max-h-[calc(100dvh-7rem)] xl:w-96 xl:overflow-y-auto`}>
         <KeyStats daily={daily} features={features} flat />
         <NewsFeed ticker={symbol} flat />
       </aside>
