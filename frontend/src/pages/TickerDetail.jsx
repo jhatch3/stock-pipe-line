@@ -1,27 +1,20 @@
-import { useState, useEffect, useMemo } from 'react'
-import { AlertTriangle, ArrowLeft, SwitchHorizontal01, TrendUp01, TrendDown01, Inbox01 } from '@untitledui/icons'
-import { useParams, useNavigate } from 'react-router-dom'
+// UI: Untitled UI buttons, badges, tables —
+//   https://www.untitledui.com/react/components/buttons
+//   https://www.untitledui.com/react/components/tables
+import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, Inbox01, SwitchHorizontal01 } from '@untitledui/icons'
+import { Button } from '@/components/base/buttons/button'
 import { supabase } from '../lib/supabase.js'
-import { FEATURE_SECTIONS } from '../lib/constants.js'
+import { CARD, fmtPrice } from '../lib/ui.js'
 import SectorBadge from '../components/SectorBadge.jsx'
-import FeatureSection from '../components/FeatureSection.jsx'
+import PriceChange from '../components/PriceChange.jsx'
 import PriceChart from '../components/PriceChart.jsx'
-import SectorCompareTable from '../components/SectorCompareTable.jsx'
 import AgentPanel from '../components/AgentPanel.jsx'
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-function SkeletonSection() {
-  return (
-    <div className="bg-white ui-card border border-gray-200 overflow-hidden animate-pulse">
-      <div className="h-14 bg-gray-100" />
-      <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-gray-100 ui-tile p-3 h-14" />
-        ))}
-      </div>
-    </div>
-  )
-}
+import NewsFeed from '../components/NewsFeed.jsx'
+import MetricsTables from '../components/MetricsTables.jsx'
+import SectorCompareTable from '../components/SectorCompareTable.jsx'
+import { RsiGauge, RankRings, SectorRadar, ValuationBars } from '../components/TickerVisuals.jsx'
 
 function formatTimestamp(ts) {
   if (!ts) return null
@@ -33,10 +26,18 @@ function formatTimestamp(ts) {
   } catch { return ts }
 }
 
-// ─── Ticker Detail Page ───────────────────────────────────────────────────────
+function Card({ title, subtitle, className = '', children }) {
+  return (
+    <section className={`${CARD} p-5 ${className}`}>
+      <h2 className="text-lg font-semibold text-primary">{title}</h2>
+      {subtitle && <p className="text-sm text-tertiary">{subtitle}</p>}
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
+
 export default function TickerDetail() {
   const { symbol } = useParams()
-  const navigate   = useNavigate()
 
   const [ticker,         setTicker]         = useState(null)
   const [features,       setFeatures]       = useState(null)
@@ -59,7 +60,7 @@ export default function TickerDetail() {
       ] = await Promise.all([
         supabase.from('tickers').select('*').eq('symbol', symbol).single(),
         supabase.from('stock_features').select('*').eq('ticker', symbol).eq('interval', '1h')
-          .order('timestamp', { ascending: false }).limit(1).single(),
+          .order('timestamp', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('stock_clean_data_yf').select('close,timestamp').eq('ticker', symbol)
           .eq('interval', '1d').order('timestamp', { ascending: false }).limit(2),
       ])
@@ -71,173 +72,130 @@ export default function TickerDetail() {
       }
       setTicker(tickerData)
       setFeatures(featuresData ?? null)
-
-      if (priceRows?.length) {
-        setPrice({
-          close:      priceRows[0].close,
-          prev_close: priceRows[1]?.close ?? null,
-          timestamp:  priceRows[0].timestamp,
-        })
-      }
-
+      setPrice(priceRows?.length ? {
+        close:      priceRows[0].close,
+        prev_close: priceRows[1]?.close ?? null,
+        timestamp:  priceRows[0].timestamp,
+      } : null)
       setLoading(false)
     }
     fetchData()
   }, [symbol])
 
-  // ── Sector features for ranking ──────────────────────────────────────────
+  // ── Latest feature row for every stock in the sector (peer comparisons) ──
   useEffect(() => {
     if (!ticker?.sector) return
     async function fetchSectorFeatures() {
       const { data: tickerRows } = await supabase
         .from('tickers').select('symbol').eq('sector', ticker.sector)
       if (!tickerRows?.length) return
-      const symbols = tickerRows.map(t => t.symbol)
       const { data: featRows } = await supabase
         .from('stock_features').select('*')
-        .in('ticker', symbols).eq('interval', '1h')
+        .in('ticker', tickerRows.map(t => t.symbol)).eq('interval', '1h')
         .order('timestamp', { ascending: false })
       if (!featRows) return
       const seen = new Set()
-      setSectorFeatures(featRows.filter(r => {
-        if (seen.has(r.ticker)) return false
-        seen.add(r.ticker)
-        return true
-      }))
+      setSectorFeatures(featRows.filter(r => !seen.has(r.ticker) && seen.add(r.ticker)))
     }
     fetchSectorFeatures()
   }, [ticker?.sector])
 
-  // ── Compute per-field sector ranks ───────────────────────────────────────
-  const sectorRanks = useMemo(() => {
-    if (!sectorFeatures.length) return {}
-    const ranks = {}
-    const allFields = FEATURE_SECTIONS.flatMap(s => s.fields)
-    for (const field of allFields) {
-      if (field.higherBetter === null || field.higherBetter === undefined) continue
-      const peers = sectorFeatures.filter(r => r[field.key] != null)
-      if (peers.length < 2) continue
-      const me = sectorFeatures.find(r => r.ticker === symbol)
-      if (!me || me[field.key] == null) continue
-      const sorted = [...peers].sort((a, b) =>
-        field.higherBetter ? b[field.key] - a[field.key] : a[field.key] - b[field.key]
-      )
-      const pos = sorted.findIndex(r => r.ticker === symbol) + 1
-      ranks[field.key] = { rank: pos, total: peers.length }
-    }
-    return ranks
-  }, [sectorFeatures, symbol])
-
   // ── Loading / error ──────────────────────────────────────────────────────
   if (loading) return (
-    <div className="min-h-screen bg-white">
-      <div className="sticky top-16 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-4 flex items-center gap-4 animate-pulse">
-          <div className="h-8 w-20 bg-gray-200 rounded-sm" />
-          <div className="h-8 w-24 bg-gray-200 rounded-sm" />
-        </div>
+    <div className="mx-auto max-w-container px-4 py-8 md:px-8">
+      <div className="mb-6 h-10 w-64 animate-pulse rounded-lg bg-secondary" />
+      <div className="grid gap-6">
+        {[0, 1, 2].map(i => <div key={i} className={`${CARD} h-64 animate-pulse`} />)}
       </div>
-      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8 flex flex-col gap-5">
-        {FEATURE_SECTIONS.map(s => <SkeletonSection key={s.id} />)}
-      </main>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-white">
-      <div className="flex flex-col items-center justify-center py-32 text-gray-400">
-        <AlertTriangle className="size-12 mb-4 text-warning-500" aria-hidden="true" />
-        <p className="text-lg font-medium text-gray-700">{error}</p>
-        <button onClick={() => navigate('/')}
-          className="mt-6 flex items-center gap-1.5 px-5 py-2 bg-gray-900 text-white ui-tile text-sm font-medium hover:bg-gray-700 transition-colors">
-          <ArrowLeft className="size-4" aria-hidden="true" /> Back to Dashboard
-        </button>
-      </div>
+    <div className="flex flex-col items-center justify-center px-4 py-32 text-center">
+      <AlertTriangle className="mb-4 size-12 text-fg-warning-primary" aria-hidden="true" />
+      <p className="text-lg font-medium text-primary">{error}</p>
+      <Button className="mt-6" size="md" color="secondary" iconLeading={ArrowLeft} href="/">Back to dashboard</Button>
     </div>
   )
 
-  const lastUpdated  = features?.timestamp ? formatTimestamp(features.timestamp) : null
-  const change       = price?.prev_close ? price.close - price.prev_close : null
-  const changePct    = change !== null ? (change / price.prev_close) * 100 : null
-  const up           = change === null ? true : change >= 0
+  const lastUpdated = features?.timestamp ? formatTimestamp(features.timestamp) : null
+  const change      = price?.prev_close ? price.close - price.prev_close : null
+  const changeFrac  = change !== null ? change / price.prev_close : null
+  const peers       = sectorFeatures
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="mx-auto max-w-container px-4 py-6 md:px-8">
 
-      {/* Sticky sub-header */}
-      <div className="sticky top-16 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
-          <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
-            <ArrowLeft className="size-4" aria-hidden="true" /> Back
-          </button>
-          <div className="w-px h-5 bg-gray-300" />
-          <span className="text-2xl font-extrabold text-gray-900 tracking-tight">{ticker?.symbol}</span>
-          {ticker?.name && <span className="text-base text-gray-500 font-medium hidden sm:block">{ticker.name}</span>}
-          <SectorBadge sector={ticker?.sector} size="md" />
-          <div className="ml-auto flex items-center gap-3">
-            {lastUpdated && <span className="text-xs text-gray-400 hidden md:block">Updated {lastUpdated}</span>}
-            <button onClick={() => navigate(`/compare?tickers=${symbol}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-300 ui-btn text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors">
-              <SwitchHorizontal01 className="size-3.5" aria-hidden="true" /> Compare
-            </button>
-          </div>
+      {/* Title row */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <Button size="sm" color="link-gray" iconLeading={ArrowLeft} href="/">Dashboard</Button>
+        <div className="h-5 w-px bg-border-secondary" />
+        <h1 className="text-display-xs font-semibold text-primary">{ticker?.symbol}</h1>
+        {ticker?.name && <span className="hidden text-lg text-tertiary sm:block">{ticker.name}</span>}
+        <SectorBadge sector={ticker?.sector} size="md" />
+        <div className="ml-auto flex items-center gap-3">
+          {lastUpdated && <span className="hidden text-xs text-quaternary md:block">Features updated {lastUpdated}</span>}
+          <Button size="sm" color="secondary" iconLeading={SwitchHorizontal01} href={`/compare?tickers=${symbol}`}>Compare</Button>
         </div>
       </div>
 
-      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8">
-
-        {/* AI Analysis — top of page */}
-        <div className="mb-6">
-          <AgentPanel ticker={symbol} />
-        </div>
-
-        {/* Price hero strip */}
-        <div className="flex flex-wrap items-baseline gap-3 mb-4 px-1">
-          <span className="text-5xl font-extrabold text-gray-900 tracking-tight tabular-nums">
-            {price
-              ? `$${Number(price.close).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : '—'}
-          </span>
-          {changePct !== null && (
-            <span className={`flex items-center gap-1.5 text-lg font-semibold ${up ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {up ? <TrendUp01 className="size-5" aria-hidden="true" /> : <TrendDown01 className="size-5" aria-hidden="true" />}
-              <span>{up ? '+' : ''}{Number(change).toFixed(2)}</span>
-              <span className="text-base font-medium opacity-80">({up ? '+' : ''}{changePct.toFixed(2)}%)</span>
+      {/* Price */}
+      <div className="mb-4 flex flex-wrap items-baseline gap-3">
+        <span className="text-display-md font-semibold text-primary tabular-nums">{fmtPrice(price?.close)}</span>
+        {change !== null && (
+          <span className="flex items-baseline gap-2">
+            <PriceChange value={changeFrac} size="lg" />
+            <span className={`text-md font-medium tabular-nums ${change >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              ({change >= 0 ? '+' : ''}{change.toFixed(2)})
             </span>
-          )}
-          <span className="text-xs text-gray-400 ml-1">daily close · 1d change</span>
+          </span>
+        )}
+        <span className="text-xs text-quaternary">daily close · 1D change</span>
+      </div>
+
+      <div className="flex flex-col gap-6">
+        <PriceChart ticker={symbol} />
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2"><AgentPanel ticker={symbol} /></div>
+          <NewsFeed ticker={symbol} />
         </div>
 
-        {/* Full-width chart */}
-        <div className="mb-6">
-          <PriceChart ticker={symbol} sector={ticker?.sector} />
-        </div>
-
-        {/* Feature sections with sector ranks */}
         {!features ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-            <Inbox01 className="size-12 mb-4 text-gray-300" aria-hidden="true" />
-            <p className="text-lg font-medium text-gray-700">No features data yet</p>
-            <p className="text-sm mt-1 text-gray-400">
-              Run <code className="bg-gray-100 px-1 rounded-sm">pipeline_features.py</code> to generate features for <strong>{symbol}</strong>.
+          <div className={`${CARD} flex flex-col items-center justify-center py-16 text-center`}>
+            <Inbox01 className="mb-3 size-10 text-fg-quaternary" aria-hidden="true" />
+            <p className="text-lg font-medium text-primary">No feature data yet</p>
+            <p className="mt-1 text-sm text-tertiary">
+              Run <code className="rounded bg-secondary px-1">python -m pipelines.features --run {symbol}</code> to compute it.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
-            {FEATURE_SECTIONS.map(section => (
-              <FeatureSection key={section.id} section={section} data={features} ranks={sectorRanks} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-6 lg:grid-cols-3">
+              <Card title="RSI (14)" subtitle="Momentum: below 30 oversold, above 70 overbought">
+                <RsiGauge value={features.rsi} />
+              </Card>
+              <Card title="Sector percentile" className="lg:col-span-2"
+                subtitle={`Share of ${Math.max(peers.length - 1, 0)} ${ticker?.sector ?? ''} peers this stock beats (100 = best)`}>
+                <RankRings peers={peers} symbol={symbol} />
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card title="Profile vs. sector" subtitle="Percentile on each metric; dashed ring is the sector median">
+                <SectorRadar peers={peers} symbol={symbol} />
+              </Card>
+              <Card title="Valuation vs. sector" subtitle="Multiples compared with the sector median">
+                <ValuationBars peers={peers} symbol={symbol} />
+              </Card>
+            </div>
+
+            <MetricsTables features={features} peers={peers} symbol={symbol} />
+          </>
         )}
 
-        {/* Sector comparison table */}
-        {ticker?.sector && (
-          <div className="mt-6">
-            <SectorCompareTable symbol={symbol} sector={ticker.sector} />
-          </div>
-        )}
-      </main>
+        {ticker?.sector && <SectorCompareTable symbol={symbol} sector={ticker.sector} peers={peers} />}
+      </div>
     </div>
   )
 }
