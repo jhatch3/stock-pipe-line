@@ -36,7 +36,7 @@ const COMPARE_METRICS = [
 ]
 
 function fmt(ts) {
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function NormalizedTooltip({ active, payload, label }) {

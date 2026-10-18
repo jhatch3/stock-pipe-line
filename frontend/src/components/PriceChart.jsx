@@ -30,12 +30,12 @@ const SYNC = 'price-sync'
 function fmtDate(ts, interval) {
   const d = new Date(ts)
   if (interval === '1h') {
-    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
   }
   if (interval === '1w') {
-    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function fmtVol(v) {
