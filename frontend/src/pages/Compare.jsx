@@ -95,7 +95,7 @@ function TickerSearch({ tickers, selected, onAdd }) {
           disabled={selected.length >= MAX_TICKERS}
           onChange={e => { setQuery(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 ui-tile bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 ui-tile bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
       {open && filtered.length > 0 && (
@@ -224,7 +224,7 @@ export default function Compare() {
     <div className="min-h-screen bg-white">
       <Header tickers={allTickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
 
-      <main className="max-w-screen-xl mx-auto px-4 py-8">
+      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8">
         {/* Page header */}
         <div className="flex items-center gap-3 mb-6">
           <button

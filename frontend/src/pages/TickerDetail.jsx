@@ -137,12 +137,12 @@ export default function TickerDetail() {
     <div className="min-h-screen bg-white">
       <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
       <div className="sticky top-14 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-screen-xl mx-auto px-4 py-4 flex items-center gap-4 animate-pulse">
-          <div className="h-8 w-20 bg-gray-200 rounded" />
-          <div className="h-8 w-24 bg-gray-200 rounded" />
+        <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-4 flex items-center gap-4 animate-pulse">
+          <div className="h-8 w-20 bg-gray-200 rounded-sm" />
+          <div className="h-8 w-24 bg-gray-200 rounded-sm" />
         </div>
       </div>
-      <main className="max-w-screen-xl mx-auto px-4 py-8 flex flex-col gap-5">
+      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8 flex flex-col gap-5">
         {FEATURE_SECTIONS.map(s => <SkeletonSection key={s.id} />)}
       </main>
     </div>
@@ -174,7 +174,7 @@ export default function TickerDetail() {
 
       {/* Sticky sub-header */}
       <div className="sticky top-14 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-screen-xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="max-w-(--breakpoint-xl) mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <button onClick={() => navigate('/')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
             ← Back
@@ -195,7 +195,7 @@ export default function TickerDetail() {
         </div>
       </div>
 
-      <main className="max-w-screen-xl mx-auto px-4 py-8">
+      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8">
 
         {/* AI Analysis — top of page */}
         <div className="mb-6">
@@ -230,7 +230,7 @@ export default function TickerDetail() {
             <span className="text-5xl mb-4">📭</span>
             <p className="text-lg font-medium text-gray-700">No features data yet</p>
             <p className="text-sm mt-1 text-gray-400">
-              Run <code className="bg-gray-100 px-1 rounded">pipeline_features.py</code> to generate features for <strong>{symbol}</strong>.
+              Run <code className="bg-gray-100 px-1 rounded-sm">pipeline_features.py</code> to generate features for <strong>{symbol}</strong>.
             </p>
           </div>
         ) : (

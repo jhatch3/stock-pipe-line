@@ -8,9 +8,9 @@ import Header from '../components/Header.jsx'
 function SkeletonCard() {
   return (
     <div className="bg-white border border-gray-200 ui-tile p-4 animate-pulse">
-      <div className="h-5 bg-gray-200 rounded w-16 mb-2" />
-      <div className="h-3 bg-gray-100 rounded w-full mb-3" />
-      <div className="h-4 bg-gray-100 rounded w-20" />
+      <div className="h-5 bg-gray-200 rounded-sm w-16 mb-2" />
+      <div className="h-3 bg-gray-100 rounded-sm w-full mb-3" />
+      <div className="h-4 bg-gray-100 rounded-sm w-20" />
     </div>
   )
 }
@@ -62,7 +62,7 @@ function HeroSearch({ tickers, onSelect }) {
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
-          className="w-full pl-12 pr-4 py-4 text-base border border-gray-300 ui-card bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          className="w-full pl-12 pr-4 py-4 text-base border border-gray-300 ui-card bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
         />
       </div>
 
@@ -155,8 +155,8 @@ export default function Home() {
       <Header tickers={tickers} onSelectTicker={handleSelectTicker} />
 
       {/* Hero */}
-      <section className="bg-gradient-to-b from-gray-50 to-white pt-16 pb-12 px-4">
-        <div className="max-w-screen-xl mx-auto flex flex-col items-center text-center gap-6">
+      <section className="bg-linear-to-b from-gray-50 to-white pt-16 pb-12 px-4">
+        <div className="max-w-(--breakpoint-xl) mx-auto flex flex-col items-center text-center gap-6">
           <div>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
               Stock Analytics Dashboard
@@ -171,7 +171,7 @@ export default function Home() {
 
       {/* Sector Filter */}
       <section className="sticky top-14 z-40 bg-white border-b border-gray-100 px-4">
-        <div className="max-w-screen-xl mx-auto">
+        <div className="max-w-(--breakpoint-xl) mx-auto">
           <div className="flex items-center gap-2 py-3 overflow-x-auto">
             {sectors.map((sector) => (
               <button
@@ -191,7 +191,7 @@ export default function Home() {
       </section>
 
       {/* Ticker Grid */}
-      <main className="max-w-screen-xl mx-auto px-4 py-8">
+      <main className="max-w-(--breakpoint-xl) mx-auto px-4 py-8">
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {Array.from({ length: 30 }).map((_, i) => (

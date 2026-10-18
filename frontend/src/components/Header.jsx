@@ -41,7 +41,7 @@ export default function Header({ tickers = [], onSelectTicker }) {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-      <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-(--breakpoint-xl) mx-auto px-4 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
         <button
           onClick={() => navigate('/')}
@@ -82,7 +82,7 @@ export default function Header({ tickers = [], onSelectTicker }) {
                 setOpen(true)
               }}
               onFocus={() => setOpen(true)}
-              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 ui-btn bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 ui-btn bg-gray-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
             />
           </div>
 

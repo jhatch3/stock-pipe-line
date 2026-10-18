@@ -1,20 +1,91 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "./styles/theme.css";
 
+@plugin "tailwindcss-animate";
+@plugin "tailwindcss-react-aria-components";
+
+/* ── Untitled UI global styles ────────────────────────────────────────────────
+   Source: Untitled UI React (MIT) — https://github.com/untitleduico/react/blob/1d410cb/styles/globals.css
+   License: see src/components/untitled-ui-LICENSE
+   Modified: dropped the @tailwindcss/typography plugin and typography.css import (unused). */
+@custom-variant dark (&:where(.dark-mode, .dark-mode *));
+@custom-variant label (& [data-label]);
+@custom-variant focus-input-within (&:has(input:focus));
+
+@utility scrollbar-hide {
+    /* For Webkit-based browsers (Chrome, Safari and Opera) */
+    &::-webkit-scrollbar {
+        display: none;
+        -webkit-appearance: none;
+    }
+
+    /* For IE, Edge and Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+@utility transition-inherit-all {
+    transition-property: inherit;
+    transition-duration: inherit;
+    transition-timing-function: inherit;
+}
+
+html,
+body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-variant-ligatures: contextual;
+    font-variant-ligatures: contextual;
+    -webkit-font-kerning: normal;
+    font-kerning: normal;
+}
+
+/* Hide the default expand arrow on Safari.  */
+details summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Hide default arrows from number inputs. */
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+/* Firefox */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Hide the default clear button (X) from search inputs. */
+input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}
+
+/* Hide the default outline on chart elements. */
+.recharts-surface,
+.recharts-surface g,
+.recharts-surface path {
+    outline: none;
+}
+
+/* ── App ──────────────────────────────────────────────────────────────────── */
 @layer base {
+  /* Tailwind v4 defaults borders to currentcolor; keep v3's light default */
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--color-border-secondary, currentcolor);
+  }
   body {
-    @apply font-sans bg-white text-gray-900;
+    @apply bg-primary text-primary;
   }
 }
 
-/* ── Shared UI shapes ─────────────────────────────────────────────────────── */
-@layer components {
-  .ui-card { border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
-  .ui-tile { border-radius: 4px; }
-  .ui-btn  { border-radius: 4px; }
-  .ui-tag  { border-radius: 2px; }
-}
+/* Legacy shape utilities; removed as pages move to Untitled UI components */
+@utility ui-card { border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+@utility ui-tile { border-radius: 4px; }
+@utility ui-btn  { border-radius: 4px; }
+@utility ui-tag  { border-radius: 2px; }
 
 /* Sector tags (outside @layer so Tailwind keeps the dynamically built .s-* classes) */
 .tag-sector {

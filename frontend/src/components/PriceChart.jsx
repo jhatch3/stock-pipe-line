@@ -377,7 +377,7 @@ export default function PriceChart({ ticker, sector }) {
   if (loading) return (
     <div className="space-y-3">
       <div className="bg-white border border-gray-200 ui-card p-5">
-        <div className="h-8 w-64 bg-gray-100 rounded animate-pulse mb-3" />
+        <div className="h-8 w-64 bg-gray-100 rounded-sm animate-pulse mb-3" />
         <div className="h-[320px] bg-gray-50 ui-tile animate-pulse" />
       </div>
       <div className="bg-white border border-gray-200 ui-card p-5">
@@ -472,7 +472,7 @@ export default function PriceChart({ ticker, sector }) {
           <select
             value={subPanel}
             onChange={e => setSubPanel(e.target.value)}
-            className="text-xs font-semibold text-gray-700 bg-gray-100 border-0 ui-btn px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-300 cursor-pointer"
+            className="text-xs font-semibold text-gray-700 bg-gray-100 border-0 ui-btn px-3 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-gray-300 cursor-pointer"
           >
             {SUB_PANELS.map(p => (
               <option key={p.value} value={p.value}>{p.label}</option>
@@ -483,8 +483,8 @@ export default function PriceChart({ ticker, sector }) {
             <div className="flex gap-3 text-xs text-gray-500">
               <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-600 inline-block" />MACD</span>
               <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-orange-500 inline-block" />Signal</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 inline-block rounded-sm" />+Hist</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-rose-500 inline-block rounded-sm" />−Hist</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 inline-block rounded-xs" />+Hist</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-rose-500 inline-block rounded-xs" />−Hist</span>
             </div>
           )}
           {subPanel === 'rsi' && (
