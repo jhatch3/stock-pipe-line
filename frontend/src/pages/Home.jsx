@@ -141,7 +141,7 @@ export default function Home() {
       </section>
 
       {/* Sector Filter */}
-      <section className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4">
+      <section className="sticky top-16 z-40 bg-white border-b border-gray-100 px-4">
         <div className="max-w-(--breakpoint-xl) mx-auto">
           <div className="flex items-center gap-2 py-3 overflow-x-auto">
             {sectors.map((sector) => (

@@ -1,13 +1,13 @@
-// UI: Untitled UI sidebar navigation, combobox, toggle —
-//   https://www.untitledui.com/react/components/sidebar-navigations
+// UI: Untitled UI header navigation, combobox, button —
+//   https://www.untitledui.com/react/components/header-navigations
 //   https://www.untitledui.com/react/components/select
-//   https://www.untitledui.com/react/components/toggles
+//   https://www.untitledui.com/react/components/buttons
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { BarChartSquare02, BookOpen01, SwitchHorizontal01, LineChartUp03 } from '@untitledui/icons'
-import { SidebarNavigationSimple } from '@/components/application/app-navigation/sidebar-navigation/sidebar-simple'
+import { LineChartUp03, Moon01, Sun } from '@untitledui/icons'
+import { HeaderNavigationBase } from '@/components/application/app-navigation/header-navigation'
+import { Button } from '@/components/base/buttons/button'
 import { Select } from '@/components/base/select/select'
-import { Toggle } from '@/components/base/toggle/toggle'
 import { supabase } from '../lib/supabase.js'
 import { getInitialTheme, applyTheme, saveTheme } from '../lib/theme.js'
 
@@ -16,9 +16,9 @@ const TickersContext = createContext([])
 export const useTickers = () => useContext(TickersContext)
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',  href: '/',           icon: BarChartSquare02 },
-  { label: 'Compare',    href: '/compare',    icon: SwitchHorizontal01 },
-  { label: 'Indicators', href: '/indicators', icon: BookOpen01 },
+  { label: 'Dashboard',  href: '/' },
+  { label: 'Compare',    href: '/compare' },
+  { label: 'Indicators', href: '/indicators' },
 ]
 
 function Logo() {
@@ -53,12 +53,14 @@ function TickerSearch({ tickers }) {
 function ThemeToggle() {
   const [theme, setTheme] = useState(getInitialTheme)
   useEffect(() => { applyTheme(theme); saveTheme(theme) }, [theme])
+  const dark = theme === 'dark'
   return (
-    <Toggle
+    <Button
       size="sm"
-      label="Dark mode"
-      isSelected={theme === 'dark'}
-      onChange={on => setTheme(on ? 'dark' : 'light')}
+      color="tertiary"
+      iconLeading={dark ? Sun : Moon01}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      onPress={() => setTheme(dark ? 'light' : 'dark')}
     />
   )
 }
@@ -72,19 +74,28 @@ export default function AppShell({ children }) {
       .then(({ data }) => { if (data) setTickers(data) })
   }, [])
 
-  const activeUrl = NAV_ITEMS.find(i => i.href !== '/' && pathname.startsWith(i.href))?.href ?? '/'
-
   return (
     <TickersContext.Provider value={tickers}>
-      <div className="flex min-h-dvh flex-col bg-primary lg:flex-row">
-        <SidebarNavigationSimple
-          activeUrl={activeUrl}
-          items={NAV_ITEMS}
-          logo={<Logo />}
-          search={<TickerSearch tickers={tickers} />}
-          featureCard={<ThemeToggle />}
-          showAccountCard={false}
-        />
+      <div className="flex min-h-dvh flex-col bg-primary">
+        <div className="sticky top-0 z-50">
+          <HeaderNavigationBase
+            activeUrl={pathname}
+            items={NAV_ITEMS}
+            logo={<Logo />}
+            actions={
+              <>
+                <div className="w-72"><TickerSearch tickers={tickers} /></div>
+                <ThemeToggle />
+              </>
+            }
+            mobileContent={
+              <>
+                <TickerSearch tickers={tickers} />
+                <ThemeToggle />
+              </>
+            }
+          />
+        </div>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     </TickersContext.Provider>
