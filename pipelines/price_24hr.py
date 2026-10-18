@@ -1,5 +1,5 @@
 """
-Price 24hr Pipeline — fetches the last 24 hours of OHLCV data for all tickers.
+Price Pipeline — refreshes the last few days of 1d and 1h OHLCV data for all tickers.
 
 Usage:
     python -m pipelines.price_24hr --run --all
@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pipeline_price_24hr")
 
-LOOK_BACK_DAYS = 1  # 24 hours
+LOOK_BACK_DAYS = 5  # refetch a few days so a missed run self-heals (upserts are idempotent)
 
 
 def run_all():
