@@ -25,7 +25,7 @@ A production-grade stock analytics system built on a medallion architecture (**r
 ## Key Features
 
 **Data Engineering**
-- Multi-interval ETL pipelines (1m / 30m / 1h / 1d) for 230+ tickers with conflict-aware upserts and replayable backfills
+- Multi-interval ETL pipelines (1h / 1d) for 230+ tickers with conflict-aware upserts and replayable backfills
 - Modular pipeline architecture: `price_24hr` → `news` → `features` → `ai_agent`, each independently schedulable
 - Ticker universe driven by database — add/remove tickers without touching pipeline code
 
@@ -82,11 +82,29 @@ stock-pipe-line/
 | Table | Layer | Description |
 |---|---|---|
 | `tickers` | Config | Universe: id, symbol, name, sector |
-| `stock_raw_data_yf` | Raw | Raw JSON payload per fetch |
+| ~~`stock_raw_data_yf`~~ | Raw | Removed — see [Free-tier storage](#free-tier-storage) |
 | `stock_clean_data_yf` | Clean | Typed OHLCV rows, deduped on (ticker, interval, timestamp) |
 | `stock_features` | Features | 30+ computed features per bar |
 | `clean_stock_news_data` | Clean | Normalized news articles |
 | `stock_ai_analysis` | AI | GPT summaries with sources per ticker |
+
+## Free-tier storage
+
+The database is kept small enough for Supabase's free plan (500 MB). The full history was about 2 GB, so the following data is no longer stored:
+
+| Removed | Why it was safe to drop |
+|---|---|
+| Raw JSON tables (`stock_raw_data_yf`, `raw_stock_news_data`) | Nothing reads them. Every price refill appended a full-history copy, which made them the biggest tables. |
+| 30m and 1m price bars | The dashboard only charts 1h and 1d data. |
+| `stock_features` rows older than 30 days | The dashboard only shows the latest feature row per ticker. |
+
+The pipelines now only write clean data at 1h and 1d intervals (`data/stock_yf.py`, `pipelines/news.py`), so the dropped data doesn't come back.
+
+To apply the cleanup, run `scripts/cleanup_free_tier.sql` in the Supabase SQL editor. Re-run step 3 of that script now and then to keep `stock_features` small.
+
+Supabase pauses free projects after about a week without activity. Running the pipelines on a schedule keeps the project active.
+
+To restore the raw layer or extra intervals later, add the `store_raw(...)` call back in `process_stock_data` and the `"30m"` / `"1m"` lines in `data/stock_yf.py`.
 
 ## Installation
 
@@ -112,7 +130,8 @@ stock-pipe-line/
 
 3. **Configure environment**
    ```bash
-   cp .env.example .env
+   cp .env_copy .env
+   cp frontend/.env.example frontend/.env   # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
    # Fill in:
    # SUPABASE_URL=
    # SUPABASE_SERVICE_ROLE_KEY=
@@ -122,7 +141,16 @@ stock-pipe-line/
    # LANGSMITH_API_KEY=
    ```
 
-4. **Initialize database** — run `init_db.sql` in the Supabase SQL editor
+4. **Initialize database** — run `scripts/init_db.sql` in the Supabase SQL editor
+
+5. **Backfill** (in this order)
+   ```bash
+   python -m scripts.seed_tickers              # tickers table: symbol, name, sector
+   python -m data.stock_yf --populate --all     # 10y daily + 730d hourly prices
+   python -m pipelines.news --run --all
+   python -m pipelines.features --run --all
+   python -m pipelines.ai_agent --run --all     # needs OpenAI + LangSmith prompt "stock-bot-v1"
+   ```
 
 ## Usage
 

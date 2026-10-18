@@ -78,7 +78,7 @@ def _fetch_vix() -> pd.Series:
 
 def _fetch_info(ticker: str) -> dict:
     """Fetch yfinance fundamentals + interest coverage ratio for a ticker."""
-    tk   = yf.Ticker(ticker)
+    tk   = yf.Ticker(ticker.replace(".", "-"))  # Yahoo uses BF-B, not BF.B
     info = tk.info or {}
 
     # Interest coverage ratio (EBIT / Interest Expense) — not in .info

@@ -1,3 +1,4 @@
+// UI: Untitled UI button group + select — https://www.untitledui.com/react/components/button-groups
 import { useState, useEffect, useMemo } from 'react'
 import {
   ComposedChart, BarChart, LineChart,
@@ -5,7 +6,10 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
+import { ButtonGroup, ButtonGroupItem } from '@/components/base/button-group/button-group'
+import { Select } from '@/components/base/select/select'
 import { supabase } from '../lib/supabase.js'
+import { CARD } from '../lib/ui.js'
 import { computeIndicators } from '../lib/indicators.js'
 
 const RANGES = [
@@ -20,9 +24,16 @@ const RANGES = [
 ]
 
 const SUB_PANELS = [
-  { value: 'vol_24h', label: '24h Volume' },
-  { value: 'rsi',     label: 'RSI (14)' },
-  { value: 'macd',    label: 'MACD (12, 26, 9)' },
+  { id: 'vol_24h', label: 'Volume' },
+  { id: 'rsi',     label: 'RSI (14)' },
+  { id: 'macd',    label: 'MACD (12, 26, 9)' },
+]
+
+const OVERLAYS = [
+  { id: 'bb',     label: 'BB',      color: '#64748B' },
+  { id: 'vwap',   label: 'VWAP',    color: '#F59E0B' },
+  { id: 'sma50',  label: 'SMA 50',  color: '#6366F1' },
+  { id: 'sma200', label: 'SMA 200', color: '#EC4899' },
 ]
 
 const SYNC = 'price-sync'
@@ -30,12 +41,12 @@ const SYNC = 'price-sync'
 function fmtDate(ts, interval) {
   const d = new Date(ts)
   if (interval === '1h') {
-    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
   }
   if (interval === '1w') {
-    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
   }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function fmtVol(v) {
@@ -57,15 +68,15 @@ function PriceTooltip({ active, payload, showBB, showVWAP, showSMA50, showSMA200
   const d = payload[0]?.payload
   if (!d) return null
   const extras = [
-    showBB && d.bb_upper != null && ['BB↑', d.bb_upper],
-    showBB && d.bb_middle!= null && ['BB—', d.bb_middle],
-    showBB && d.bb_lower != null && ['BB↓', d.bb_lower],
+    showBB && d.bb_upper != null && ['BB upper', d.bb_upper],
+    showBB && d.bb_middle!= null && ['BB mid', d.bb_middle],
+    showBB && d.bb_lower != null && ['BB lower', d.bb_lower],
     showVWAP  && d.vwap  != null && ['VWAP',  d.vwap],
     showSMA50 && d.sma50 != null && ['SMA50', d.sma50],
     showSMA200&& d.sma200!= null && ['SMA200',d.sma200],
   ].filter(Boolean)
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs min-w-[170px]">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs min-w-[170px]">
       <p className="font-semibold text-gray-600 mb-2">{fmtDate(d.timestamp, interval)}</p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-gray-600">
         <span>O</span><span className="text-right font-medium">${Number(d.open).toFixed(2)}</span>
@@ -187,52 +198,42 @@ function MACDPanel({ data, interval }) {
   )
 }
 
-// ── Range toolbar (shared) ────────────────────────────────────────────────────
+// ── Toolbar ───────────────────────────────────────────────────────────────────
 function RangeBar({ range, setRange }) {
   return (
-    <div className="flex gap-1">
-      {RANGES.map(r => (
-        <button
-          key={r.label}
-          onClick={() => setRange(r.label)}
-          className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
-            range === r.label ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          {r.label}
-        </button>
-      ))}
-    </div>
+    <ButtonGroup size="sm" aria-label="Range" disallowEmptySelection selectedKeys={new Set([range])}
+      onSelectionChange={keys => { const k = [...keys][0]; if (k) setRange(k) }}>
+      {RANGES.map(r => <ButtonGroupItem key={r.label} id={r.label}>{r.label}</ButtonGroupItem>)}
+    </ButtonGroup>
   )
 }
 
-// ── Overlay toggle pill ───────────────────────────────────────────────────────
-function OverlayBtn({ label, active, bg, onClick }) {
+function OverlayToggles({ active, onChange }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
-        active ? 'border-transparent text-white' : 'border-gray-300 text-gray-500 hover:border-gray-400'
-      }`}
-      style={active ? { background: bg } : {}}
-    >
-      {label}
-    </button>
+    <ButtonGroup size="sm" aria-label="Overlays" selectionMode="multiple" selectedKeys={active} onSelectionChange={onChange}>
+      {OVERLAYS.map(o => (
+        <ButtonGroupItem key={o.id} id={o.id}>
+          <span className="size-2 rounded-full" style={{ background: o.color }} aria-hidden="true" />
+          {o.label}
+        </ButtonGroupItem>
+      ))}
+    </ButtonGroup>
   )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function PriceChart({ ticker, sector }) {
+export default function PriceChart({ ticker }) {
   const [range,       setRange]       = useState('3M')
-  const [showBB,      setShowBB]      = useState(false)
-  const [showVWAP,    setShowVWAP]    = useState(false)
-  const [showSMA50,   setShowSMA50]   = useState(false)
-  const [showSMA200,  setShowSMA200]  = useState(false)
+  const [overlays,    setOverlays]    = useState(() => new Set())
   const [subPanel,    setSubPanel]    = useState('vol_24h')
   const [raw,         setRaw]         = useState([])
   const [data,        setData]        = useState([])
   const [loading,     setLoading]     = useState(true)
-  const [sectorRanks, setSectorRanks] = useState(null)
+
+  const showBB     = overlays.has('bb')
+  const showVWAP   = overlays.has('vwap')
+  const showSMA50  = overlays.has('sma50')
+  const showSMA200 = overlays.has('sma200')
 
   const isHourly = range === '1D' || range === '1W'
   const interval = isHourly ? '1h' : '1d'
@@ -275,47 +276,6 @@ export default function PriceChart({ ticker, sector }) {
     setData(raw.length ? computeIndicators(raw) : [])
   }, [raw])
 
-  useEffect(() => {
-    if (!ticker || !sector) return
-    let cancelled = false
-    async function fetchRanks() {
-      // Get all tickers in sector
-      const { data: tickerRows } = await supabase
-        .from('tickers')
-        .select('symbol')
-        .eq('sector', sector)
-      if (!tickerRows?.length || cancelled) return
-      const symbols = tickerRows.map(t => t.symbol)
-      // Get latest features for each
-      const { data: featRows } = await supabase
-        .from('stock_features')
-        .select('ticker,rsi,volatility,sharpe_ratio,max_drawdown')
-        .in('ticker', symbols)
-        .eq('interval', '1h')
-        .order('timestamp', { ascending: false })
-      if (!featRows || cancelled) return
-      // Keep latest row per ticker
-      const seen = new Set()
-      const latest = featRows.filter(r => { if (seen.has(r.ticker)) return false; seen.add(r.ticker); return true })
-      const n = latest.length
-      const rank = (key, higherIsBetter = true) => {
-        const me = latest.find(r => r.ticker === ticker)
-        if (!me || me[key] == null) return null
-        const sorted = [...latest].filter(r => r[key] != null).sort((a, b) => higherIsBetter ? b[key] - a[key] : a[key] - b[key])
-        const pos = sorted.findIndex(r => r.ticker === ticker) + 1
-        return { rank: pos, total: sorted.length }
-      }
-      if (!cancelled) setSectorRanks({
-        rsi:      rank('rsi', false),        // lower RSI = more oversold = ranked lower numerically
-        sharpe:   rank('sharpe_ratio', true),
-        vol:      rank('volatility', false), // lower vol = less risky = ranked higher
-        drawdown: rank('max_drawdown', true), // less negative = better
-        n,
-      })
-    }
-    fetchRanks()
-    return () => { cancelled = true }
-  }, [ticker, sector])
 
   // Trim display data to the selected range (drops warmup bars fetched for indicator seeding)
   const displayData = useMemo(() => {
@@ -375,19 +335,19 @@ export default function PriceChart({ ticker, sector }) {
   const activeOverlays = [showBB, showVWAP, showSMA50, showSMA200].some(Boolean)
 
   if (loading) return (
-    <div className="space-y-3">
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
-        <div className="h-8 w-64 bg-gray-100 rounded animate-pulse mb-3" />
-        <div className="h-[320px] bg-gray-50 rounded-xl animate-pulse" />
+    <div className="flex flex-col gap-6">
+      <div className={`${CARD} p-5`}>
+        <div className="h-8 w-64 bg-gray-100 rounded-sm animate-pulse mb-3" />
+        <div className="h-[320px] bg-gray-50 rounded-lg animate-pulse" />
       </div>
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
-        <div className="h-[160px] bg-gray-50 rounded-xl animate-pulse" />
+      <div className={`${CARD} p-5`}>
+        <div className="h-[160px] bg-gray-50 rounded-lg animate-pulse" />
       </div>
     </div>
   )
 
   if (!displayData.length) return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+    <div className={`${CARD} p-5`}>
       <div className="h-40 flex items-center justify-center text-gray-400 text-sm">
         No price data available
       </div>
@@ -395,19 +355,16 @@ export default function PriceChart({ ticker, sector }) {
   )
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-6">
 
       {/* ── Card 1: Price chart ──────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className={`${CARD} p-5`}>
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <RangeBar range={range} setRange={setRange} />
-          <div className="flex items-center gap-2 ml-auto flex-wrap">
-            <span className="text-xs text-gray-400">Overlays:</span>
-            <OverlayBtn label="BB"     active={showBB}     bg="#64748B" onClick={() => setShowBB(v => !v)} />
-            <OverlayBtn label="VWAP"   active={showVWAP}   bg="#F59E0B" onClick={() => setShowVWAP(v => !v)} />
-            <OverlayBtn label="SMA 50" active={showSMA50}  bg="#6366F1" onClick={() => setShowSMA50(v => !v)} />
-            <OverlayBtn label="SMA 200"active={showSMA200} bg="#EC4899" onClick={() => setShowSMA200(v => !v)} />
+          <div className="max-w-full overflow-x-auto scrollbar-hide"><RangeBar range={range} setRange={setRange} /></div>
+          <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+            <span className="text-xs text-tertiary">Overlays</span>
+            <div className="max-w-full overflow-x-auto scrollbar-hide"><OverlayToggles active={overlays} onChange={setOverlays} /></div>
           </div>
         </div>
 
@@ -467,24 +424,21 @@ export default function PriceChart({ ticker, sector }) {
       </div>
 
       {/* ── Card 2: Indicator panel ──────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className={`${CARD} p-5`}>
         <div className="flex items-center justify-between mb-4">
-          <select
-            value={subPanel}
-            onChange={e => setSubPanel(e.target.value)}
-            className="text-xs font-semibold text-gray-700 bg-gray-100 border-0 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-300 cursor-pointer"
-          >
-            {SUB_PANELS.map(p => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
+          <div className="w-48">
+            <Select aria-label="Indicator panel" size="sm" items={SUB_PANELS} selectedKey={subPanel}
+              onSelectionChange={k => k && setSubPanel(k)}>
+              {item => <Select.Item id={item.id} label={item.label} />}
+            </Select>
+          </div>
 
           {subPanel === 'macd' && (
             <div className="flex gap-3 text-xs text-gray-500">
               <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-600 inline-block" />MACD</span>
               <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-orange-500 inline-block" />Signal</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 inline-block rounded-sm" />+Hist</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-rose-500 inline-block rounded-sm" />−Hist</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 inline-block rounded-xs" />+Hist</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-rose-500 inline-block rounded-xs" />−Hist</span>
             </div>
           )}
           {subPanel === 'rsi' && (
@@ -500,25 +454,6 @@ export default function PriceChart({ ticker, sector }) {
         {subPanel === 'rsi'     && <RSIPanel    data={displayData} interval={interval} />}
         {subPanel === 'macd'    && <MACDPanel   data={displayData} interval={interval} />}
 
-        {sectorRanks && (
-          <div className="mt-4 pt-3 border-t border-gray-100">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Sector Ranking ({sectorRanks.n} peers)</p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: 'RSI',       r: sectorRanks.rsi },
-                { label: 'Sharpe',    r: sectorRanks.sharpe },
-                { label: 'Volatility',r: sectorRanks.vol },
-                { label: 'Max DD',    r: sectorRanks.drawdown },
-              ].filter(x => x.r).map(({ label, r }) => (
-                <span key={label} className="inline-flex items-center gap-1 bg-gray-100 rounded-lg px-2.5 py-1 text-xs">
-                  <span className="text-gray-500">{label}</span>
-                  <span className="font-bold text-gray-800">#{r.rank}</span>
-                  <span className="text-gray-400">/ {r.total}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
     </div>

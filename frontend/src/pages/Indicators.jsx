@@ -1,264 +1,355 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
-import Header from '../components/Header.jsx'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
+import { useSpyIndicators, SmaFigure, BollingerFigure, RsiFigure, MacdFigure, VwapFigure } from '../components/PaperFigures.jsx'
 
-const INDICATORS = [
-  {
-    id: 'rsi',
-    name: 'RSI — Relative Strength Index',
-    icon: '📊',
-    color: 'violet',
-    params: 'Period: 14',
-    what: 'Measures the speed and magnitude of recent price changes to evaluate whether a stock is overbought or oversold. Oscillates between 0 and 100.',
-    formula: 'RSI = 100 − [100 / (1 + RS)]\nRS = Average Gain over N periods / Average Loss over N periods',
-    formulaNote: 'Average Gain and Average Loss are exponentially smoothed after the initial simple average.',
-    signals: [
-      { level: '> 70', label: 'Overbought', desc: 'Price may have risen too fast; potential reversal or pullback.', color: 'text-rose-600' },
-      { level: '< 30', label: 'Oversold',   desc: 'Price may have fallen too fast; potential bounce or reversal.', color: 'text-emerald-600' },
-      { level: '50',   label: 'Midline',    desc: 'Crossing above 50 is bullish momentum; below 50 is bearish.', color: 'text-gray-600' },
-    ],
-    limitations: [
-      'In strong uptrends, RSI can remain above 70 for extended periods without a reversal — overbought readings alone are not sell signals.',
-      'Generates frequent false signals in ranging, sideways markets.',
-      'The 14-period default is arbitrary; shorter periods produce noisier readings, longer periods produce fewer but slower signals.',
-    ],
-    bestWith: ['MACD (confirm momentum direction)', 'Bollinger Bands (confirm extreme prices)', 'Volume (high RSI + high volume = stronger signal)'],
-    timeframes: 'Works on any timeframe. 1h–1d charts are common for swing trades. 4h–1d RSI is more reliable than 1m or 5m for avoiding noise.',
-    tip: 'RSI divergence (price makes new high but RSI does not) is a powerful early warning signal.',
-  },
-  {
-    id: 'macd',
-    name: 'MACD — Moving Average Convergence Divergence',
-    icon: '📈',
-    color: 'blue',
-    params: 'Fast: 12  ·  Slow: 26  ·  Signal: 9',
-    what: 'Trend-following momentum indicator showing the relationship between two EMAs. The histogram shows the distance between the MACD line and its signal line.',
-    formula: 'MACD Line   = EMA(12) − EMA(26)\nSignal Line = EMA(9) of MACD Line\nHistogram   = MACD Line − Signal Line',
-    formulaNote: 'EMA = Exponential Moving Average. More recent prices receive exponentially higher weight.',
-    signals: [
-      { level: 'MACD crosses above Signal', label: 'Bullish crossover', desc: 'Potential buy signal, especially when crossing from below zero.', color: 'text-emerald-600' },
-      { level: 'MACD crosses below Signal', label: 'Bearish crossover', desc: 'Potential sell signal, especially when crossing from above zero.', color: 'text-rose-600' },
-      { level: 'Histogram expanding',       label: 'Momentum building', desc: 'The trend is strengthening in the direction of the bars.', color: 'text-gray-600' },
-    ],
-    limitations: [
-      'Lagging indicator — by definition follows price, so crossover signals come after a move has already started.',
-      'Produces many false signals in choppy or sideways markets.',
-      'Poorly suited for very short-term (scalping) timeframes due to its smoothing nature.',
-    ],
-    bestWith: ['RSI (confirm overbought/oversold at crossover)', 'Volume (strong crossover with volume = higher conviction)', 'Support/resistance levels (signals near key levels are more reliable)'],
-    timeframes: 'Most reliable on daily and weekly charts for swing and position trading. On hourly charts it can be used for short-term momentum but requires additional confirmation.',
-    tip: 'Zero-line crossovers (MACD crossing 0) confirm trend direction changes and are stronger signals than simple crossovers.',
-  },
-  {
-    id: 'bb',
-    name: 'Bollinger Bands',
-    icon: '〰️',
-    color: 'slate',
-    params: 'Period: 20  ·  Std Dev: 2σ',
-    what: 'Volatility bands placed 2 standard deviations above and below a 20-period SMA. Bands widen during high volatility and contract during low volatility.',
-    formula: 'Middle Band = SMA(20)\nUpper Band  = SMA(20) + 2 × σ(20)\nLower Band  = SMA(20) − 2 × σ(20)\nBandwidth   = (Upper − Lower) / Middle',
-    formulaNote: 'σ = standard deviation of closing prices over the same N-period window as the SMA.',
-    signals: [
-      { level: 'Price touches upper band', label: 'Potentially overbought', desc: 'Price is at the high end of its recent range; watch for reversal.', color: 'text-rose-600' },
-      { level: 'Price touches lower band', label: 'Potentially oversold',  desc: 'Price is at the low end of its recent range; watch for bounce.', color: 'text-emerald-600' },
-      { level: 'Band squeeze',             label: 'Low volatility',        desc: 'Bands narrowing signals a potential breakout is approaching.', color: 'text-amber-600' },
-    ],
-    limitations: [
-      'Touching a band is not a standalone signal — price can "walk the band" during strong trends.',
-      'Does not predict the direction of a breakout after a squeeze; requires directional confirmation.',
-      'Uses closing prices only, so intraday spikes that close near the open can be missed.',
-    ],
-    bestWith: ['RSI (RSI at extreme + price at band = stronger reversal signal)', 'Volume (breakout on high volume = more likely sustained)', 'MACD (confirm the breakout direction)'],
-    timeframes: 'Flexible — widely used on 1h, 4h, and daily charts. Daily BBs are heavily watched by institutional traders. Very short timeframes generate too much noise.',
-    tip: 'The "Bollinger Squeeze" — when bands are at their narrowest in 6 months — often precedes a large directional move.',
-  },
-  {
-    id: 'vwap',
-    name: 'VWAP — Volume Weighted Average Price',
-    icon: '⚖️',
-    color: 'amber',
-    params: 'Cumulative from period start',
-    what: 'The average price weighted by volume. Institutional traders use VWAP as a benchmark; price above VWAP is bullish, below is bearish.',
-    formula: 'VWAP = Σ(Typical Price × Volume) / Σ(Volume)\nTypical Price = (High + Low + Close) / 3',
-    formulaNote: 'Cumulative sum resets at the start of each period (day, week, etc.). This makes VWAP anchored to a specific starting point.',
-    signals: [
-      { level: 'Price above VWAP', label: 'Bullish bias',  desc: 'Buyers are in control; institutions may be accumulating.', color: 'text-emerald-600' },
-      { level: 'Price below VWAP', label: 'Bearish bias',  desc: 'Sellers are in control; distribution may be occurring.', color: 'text-rose-600' },
-      { level: 'Price returns to VWAP', label: 'Mean reversion', desc: 'Common support/resistance level for intraday traders.', color: 'text-gray-600' },
-    ],
-    limitations: [
-      'VWAP resets each period, so it becomes less meaningful as the period extends — compare current price to multi-day anchored VWAP with care.',
-      'On low-volume stocks, a few large trades can distort VWAP dramatically.',
-      'Not useful for after-hours analysis since volume is much lower and unrepresentative.',
-    ],
-    bestWith: ['Volume profile (confirm where institutional interest is concentrated)', 'Price action (candlestick patterns at VWAP rejection levels)', 'SMA 50/200 (VWAP near a major SMA = stronger confluence level)'],
-    timeframes: 'Primary use case is intraday (1m, 5m, 15m, 1h). On daily charts it represents longer-term institutional positioning. Less commonly used on weekly/monthly.',
-    tip: 'VWAP resets each period. On shorter timeframes it is more useful intraday; on longer timeframes it reflects longer-term institutional positioning.',
-  },
-  {
-    id: 'sma50',
-    name: 'SMA 50 — 50-Period Simple Moving Average',
-    icon: '📉',
-    color: 'indigo',
-    params: 'Period: 50',
-    what: 'Average closing price over the last 50 bars. Widely watched as a medium-term trend indicator. Price above SMA 50 is generally considered bullish.',
-    formula: 'SMA(N) = (P₁ + P₂ + … + Pₙ) / N\nFor SMA 50: N = 50 closing prices',
-    formulaNote: 'Each price period has equal weight, unlike EMA which weights recent prices more heavily.',
-    signals: [
-      { level: 'Price crosses above SMA 50', label: 'Bullish signal', desc: 'Medium-term trend turning positive; potential entry point.', color: 'text-emerald-600' },
-      { level: 'Price crosses below SMA 50', label: 'Bearish signal', desc: 'Medium-term trend deteriorating; potential exit or short entry.', color: 'text-rose-600' },
-      { level: 'SMA 50 acts as support',     label: 'Trend intact',   desc: 'Price bouncing off SMA 50 in an uptrend confirms the trend.', color: 'text-gray-600' },
-    ],
-    limitations: [
-      'Lagging by nature — the SMA is always behind current price, so signals come after a move has begun.',
-      'Gives equal weight to all periods, so a large price spike 49 bars ago still affects the current value.',
-      'In sideways markets, price repeatedly crosses the SMA generating false signals.',
-    ],
-    bestWith: ['SMA 200 (the 50/200 relationship defines macro trend context)', 'RSI (confirm momentum when price crosses SMA)', 'Volume (high-volume crossovers are more reliable)'],
-    timeframes: 'On daily charts, SMA 50 represents ~10 trading weeks and is one of the most widely watched medium-term levels. On hourly charts it represents ~2 trading days.',
-    tip: 'The SMA 50 / SMA 200 "Golden Cross" (50 crossing above 200) is one of the most cited long-term bullish signals in technical analysis.',
-  },
-  {
-    id: 'sma200',
-    name: 'SMA 200 — 200-Period Simple Moving Average',
-    icon: '🏔️',
-    color: 'pink',
-    params: 'Period: 200',
-    what: 'Average closing price over the last 200 bars. The most widely followed long-term trend indicator. Separates long-term bull markets from bear markets.',
-    formula: 'SMA(N) = (P₁ + P₂ + … + Pₙ) / N\nFor SMA 200: N = 200 closing prices (~40 trading weeks on daily chart)',
-    formulaNote: 'Requires 200 bars before the first value is plotted, so it appears blank at the start of a chart with limited history.',
-    signals: [
-      { level: 'Price above SMA 200', label: 'Bull market territory', desc: 'Long-term trend is up; most institutional investors are bullish.', color: 'text-emerald-600' },
-      { level: 'Price below SMA 200', label: 'Bear market territory', desc: 'Long-term trend is down; risk-off sentiment dominates.', color: 'text-rose-600' },
-      { level: 'Golden Cross',         label: 'SMA 50 crosses above SMA 200', desc: 'Historically one of the strongest long-term buy signals.', color: 'text-amber-600' },
-    ],
-    limitations: [
-      'Very slow to react — a significant trend reversal can be 10–20% underway before the SMA 200 reflects it.',
-      'Self-fulfilling to a degree: because so many traders watch it, bounces at the 200 can occur simply due to collective behavior.',
-      'On weekly or monthly charts, it represents an even longer-term average and may be less actionable for short-term traders.',
-    ],
-    bestWith: ['SMA 50 (Golden/Death Cross setup)', 'RSI (monthly RSI below 30 + price at 200 = extreme long-term entry signal)', 'Fundamental data (value + technical confluence near 200 is a high-conviction entry)'],
-    timeframes: 'Primarily used on daily charts where it represents ~40 weeks (nearly a full year). On weekly charts it represents 200 weeks (~4 years) — useful for macro trend analysis.',
-    tip: 'A "Death Cross" (SMA 50 crossing below SMA 200) historically signals a potential prolonged bear market and is closely watched by institutions.',
-  },
-]
+// Indicator reference typeset as a LaTeX-style paper. Formulas match
+// src/lib/indicators.js (chart overlays) and data/features.py (stored metrics).
 
-const COLOR_MAP = {
-  violet: { border: 'border-violet-400', bg: 'bg-violet-50', text: 'text-violet-700', badge: 'bg-violet-100 text-violet-700' },
-  blue:   { border: 'border-blue-400',   bg: 'bg-blue-50',   text: 'text-blue-700',   badge: 'bg-blue-100 text-blue-700' },
-  slate:  { border: 'border-slate-400',  bg: 'bg-slate-50',  text: 'text-slate-700',  badge: 'bg-slate-100 text-slate-600' },
-  amber:  { border: 'border-amber-400',  bg: 'bg-amber-50',  text: 'text-amber-700',  badge: 'bg-amber-100 text-amber-700' },
-  indigo: { border: 'border-indigo-400', bg: 'bg-indigo-50', text: 'text-indigo-700', badge: 'bg-indigo-100 text-indigo-700' },
-  pink:   { border: 'border-pink-400',   bg: 'bg-pink-50',   text: 'text-pink-700',   badge: 'bg-pink-100 text-pink-700' },
+const tex = (src, displayMode) => ({
+  __html: katex.renderToString(src, { displayMode, throwOnError: false }),
+})
+
+function M({ children }) {
+  return <span dangerouslySetInnerHTML={tex(children, false)} />
 }
 
-export default function Indicators() {
-  const navigate  = useNavigate()
-  const [tickers, setTickers] = useState([])
+function Eq({ n, children }) {
+  return (
+    <div className="paper-eq">
+      <div className="paper-eq-body" dangerouslySetInnerHTML={tex(children, true)} />
+      <span className="paper-eq-num">({n})</span>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    supabase.from('tickers').select('symbol,name,sector').order('symbol')
-      .then(({ data }) => { if (data) setTickers(data) })
-  }, [])
+function Section({ n, id, title, children }) {
+  return (
+    <section id={id} className="mt-10 scroll-mt-20">
+      <h2 className="text-[1.35rem] font-bold mb-3">
+        <span className="mr-4">{n}</span>{title}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+function Subsection({ n, title, children }) {
+  return (
+    <div className="mt-6">
+      <h3 className="text-[1.1rem] font-bold mb-2">
+        <span className="mr-3">{n}</span>{title}
+      </h3>
+      {children}
+    </div>
+  )
+}
+
+function Definition({ n, name, children }) {
+  return (
+    <div className="my-4">
+      <span className="font-bold">Definition {n}</span> <span>({name}).</span>{' '}
+      <span className="italic">{children}</span>
+    </div>
+  )
+}
+
+function Remark({ title = 'Remark', children }) {
+  return (
+    <p className="my-3">
+      <span className="italic">{title}.</span> {children}
+    </p>
+  )
+}
+
+function Items({ children }) {
+  return <ul className="list-disc pl-8 my-2 space-y-1">{children}</ul>
+}
+
+const SECTIONS = [
+  ['notation', 'Notation'],
+  ['moving-averages', 'Moving Averages'],
+  ['bollinger', 'Bollinger Bands'],
+  ['rsi', 'Relative Strength Index'],
+  ['macd', 'Moving Average Convergence Divergence'],
+  ['vwap', 'Volume-Weighted Average Price'],
+  ['risk', 'Risk and Return Metrics'],
+  ['market', 'Market-Relative Metrics'],
+]
+
+const R = String.raw
+
+export default function Indicators() {
+  const spy = useSpyIndicators()
+
+  // Equations are numbered in render order, like LaTeX's \begin{equation}
+  let eqn = 0
+  const eq = src => <Eq n={++eqn}>{src}</Eq>
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
+    <div className="min-h-screen bg-[#e9eaec]">
 
-      <main className="max-w-screen-lg mx-auto px-4 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Technical Indicator Guide</h1>
-          <p className="mt-2 text-gray-500 text-sm max-w-2xl">
-            A reference for every indicator available in StockIQ charts. Learn what each indicator measures, how to interpret signals, and when to use them.
+      <main className="px-3 sm:px-6 py-8">
+        <article className="paper max-w-[820px] mx-auto bg-white shadow-md px-6 sm:px-16 py-14 sm:py-20">
+
+          {/* Title block */}
+          <header className="text-center mb-10">
+            <h1 className="text-[1.9rem] leading-tight mb-4">
+              Technical Indicators and Risk Metrics:<br />Definitions and Interpretation
+            </h1>
+            <p className="text-[1.05rem]">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          </header>
+
+          <div className="mx-auto max-w-[620px] mb-10">
+            <p className="text-center font-bold text-sm mb-2">Abstract</p>
+            <p className="text-[0.95rem] leading-relaxed text-justify">
+              This note collects the definitions of every indicator plotted on the charts and every
+              metric stored in the feature table. For each quantity we give a precise formula, the parameters
+              used in this system, and a short account of how it is read in practice, together with its known
+              limitations. Technical indicators are computed per bar from closing prices; risk and
+              market-relative metrics are computed over a rolling window of hourly returns and annualized.
+            </p>
+          </div>
+
+          {/* Table of contents */}
+          <nav className="mb-6">
+            <h2 className="text-[1.35rem] font-bold mb-3">Contents</h2>
+            <ol className="space-y-1">
+              {SECTIONS.map(([id, title], i) => (
+                <li key={id} className="flex items-baseline gap-2">
+                  <a href={`#${id}`} className="hover:underline shrink-0">
+                    <span className="inline-block w-7">{i + 1}</span>{title}
+                  </a>
+                  <span className="flex-1 border-b border-dotted border-gray-400 translate-y-[-4px]" />
+                </li>
+              ))}
+            </ol>
+          </nav>
+
+          {/* 1 Notation */}
+          <Section n="1" id="notation" title="Notation">
+            <p>
+              Let <M>{R`t`}</M> index bars (hourly or daily). For each bar we observe the close <M>{R`P_t`}</M>,
+              high <M>{R`H_t`}</M>, low <M>{R`L_t`}</M> and volume <M>{R`V_t`}</M>. The simple return is
+            </p>
+            {eq(R`r_t = \frac{P_t}{P_{t-1}} - 1 .`)}
+            <p>
+              Rolling statistics are taken over the last <M>{R`n`}</M> bars, written
+              <M>{R`\;\overline{x} = \tfrac{1}{n}\sum_{i=0}^{n-1} x_{t-i}`}</M> for the mean and
+              <M>{R`\;s(x)`}</M> for the sample standard deviation. Stored metrics use <M>{R`n = 195`}</M> hourly
+              bars (about 30 trading days) and annualize with
+            </p>
+            {eq(R`A = 252 \times 6.5 = 1638 \ \text{hourly bars per year}.`)}
+            <p>
+              The risk-free rate is <M>{R`r_f = 5\%`}</M> per year, i.e. <M>{R`r_f / A`}</M> per bar, and
+              <M>{R`\;m_t`}</M> denotes the return of the S&amp;P 500 index (<span className="font-mono text-[0.9em]">^GSPC</span>) over the same bar.
+            </p>
+          </Section>
+
+          {/* 2 Moving averages */}
+          <Section n="2" id="moving-averages" title="Moving Averages">
+            <Definition n="2.1" name="Simple moving average">
+              The simple moving average of length <M>{R`n`}</M> is the unweighted mean of the last <M>{R`n`}</M> closes:
+            </Definition>
+            {eq(R`\mathrm{SMA}_n(t) = \frac{1}{n} \sum_{i=0}^{n-1} P_{t-i} .`)}
+            <Definition n="2.2" name="Exponential moving average">
+              The exponential moving average weights recent closes geometrically more heavily:
+            </Definition>
+            {eq(R`\mathrm{EMA}_n(t) = \alpha P_t + (1-\alpha)\,\mathrm{EMA}_n(t-1), \qquad \alpha = \frac{2}{n+1} .`)}
+            <p>
+              Charts plot <M>{R`\mathrm{SMA}_{50}`}</M> (medium-term trend, about ten trading weeks on daily bars)
+              and <M>{R`\mathrm{SMA}_{200}`}</M> (long-term trend, about forty weeks). Each requires <M>{R`n`}</M> bars
+              of history before its first value, which is why extra history is fetched for warm-up.
+            </p>
+            <SmaFigure n={1} rows={spy} />
+            <Remark title="Interpretation">
+              Price above its moving average indicates an uptrend over that horizon; a moving average acting as
+              support during pullbacks confirms the trend. The crossing of <M>{R`\mathrm{SMA}_{50}`}</M> above
+              <M>{R`\;\mathrm{SMA}_{200}`}</M> is called a <span className="italic">golden cross</span>; the
+              reverse is a <span className="italic">death cross</span>.
+            </Remark>
+            <Remark>
+              Moving averages lag by construction, so crossover signals arrive after a move is underway. In
+              sideways markets price crosses the average repeatedly and produces false signals. Because the SMA
+              weights every bar equally, a single large move continues to affect it for <M>{R`n`}</M> bars.
+            </Remark>
+          </Section>
+
+          {/* 3 Bollinger */}
+          <Section n="3" id="bollinger" title="Bollinger Bands">
+            <Definition n="3.1" name="Bollinger bands">
+              With window <M>{R`n = 20`}</M> and width <M>{R`k = 2`}</M>, let <M>{R`M_t = \mathrm{SMA}_{20}(t)`}</M> and
+            </Definition>
+            {eq(R`\sigma_t = \sqrt{\frac{1}{n-1} \sum_{i=0}^{n-1} \left(P_{t-i} - M_t\right)^2 } .`)}
+            <p>The bands and their relative width are</p>
+            {eq(R`U_t = M_t + k\,\sigma_t, \qquad L_t = M_t - k\,\sigma_t, \qquad \mathrm{BW}_t = \frac{U_t - L_t}{M_t} .`)}
+            <BollingerFigure n={2} rows={spy} />
+            <Remark title="Interpretation">
+              The bands widen when volatility rises and contract when it falls. A close near <M>{R`U_t`}</M> marks
+              the top of the recent range and a close near <M>{R`L_t`}</M> the bottom. An unusually small
+              <M>{R`\;\mathrm{BW}_t`}</M> (a <span className="italic">squeeze</span>) often precedes a large move.
+            </Remark>
+            <Remark>
+              Touching a band is not by itself a reversal signal: in strong trends price can ride along the band.
+              A squeeze says nothing about the direction of the subsequent breakout.
+            </Remark>
+          </Section>
+
+          {/* 4 RSI */}
+          <Section n="4" id="rsi" title="Relative Strength Index">
+            <Definition n="4.1" name="Relative strength index">
+              Let <M>{R`G_t = \max(P_t - P_{t-1}, 0)`}</M> and <M>{R`D_t = \max(P_{t-1} - P_t, 0)`}</M>. With
+              <M>{R`\;n = 14`}</M>, the averages are smoothed by Wilder's recursion
+            </Definition>
+            {eq(R`\overline{G}_t = \frac{(n-1)\,\overline{G}_{t-1} + G_t}{n}, \qquad \overline{D}_t = \frac{(n-1)\,\overline{D}_{t-1} + D_t}{n},`)}
+            <p>initialized with simple averages over the first <M>{R`n`}</M> changes. Then</p>
+            {eq(R`\mathrm{RS}_t = \frac{\overline{G}_t}{\overline{D}_t}, \qquad \mathrm{RSI}_t = 100 - \frac{100}{1 + \mathrm{RS}_t} \in [0, 100] .`)}
+            <RsiFigure n={3} rows={spy} />
+            <Remark title="Interpretation">
+              The conventional thresholds are:
+            </Remark>
+            <Items>
+              <li><M>{R`\mathrm{RSI} > 70`}</M>: overbought; the price may have risen too fast.</li>
+              <li><M>{R`\mathrm{RSI} < 30`}</M>: oversold; the price may have fallen too fast.</li>
+              <li>Crossing 50 from below (above) indicates bullish (bearish) momentum.</li>
+            </Items>
+            <Remark>
+              In strong trends RSI can stay beyond 70 or below 30 for long periods, so extreme readings alone are
+              not exit signals. A <span className="italic">divergence</span>, where price makes a new high but
+              RSI does not, is often a more informative early warning.
+            </Remark>
+          </Section>
+
+          {/* 5 MACD */}
+          <Section n="5" id="macd" title="Moving Average Convergence Divergence">
+            <Definition n="5.1" name="MACD">
+              Using the exponential moving averages of Definition 2.2,
+            </Definition>
+            {eq(R`\mathrm{MACD}_t = \mathrm{EMA}_{12}(t) - \mathrm{EMA}_{26}(t),`)}
+            {eq(R`\mathrm{Signal}_t = \mathrm{EMA}_{9}\!\left(\mathrm{MACD}\right)(t), \qquad \mathrm{Hist}_t = \mathrm{MACD}_t - \mathrm{Signal}_t .`)}
+            <MacdFigure n={4} rows={spy} />
+            <Remark title="Interpretation">
+              The MACD line crossing above its signal line is a bullish crossover, and crossing below is bearish.
+              A growing histogram shows momentum building in the direction of the bars. A cross of the MACD line
+              through zero means <M>{R`\mathrm{EMA}_{12}`}</M> and <M>{R`\mathrm{EMA}_{26}`}</M> have swapped order,
+              a stronger confirmation of a trend change than a signal-line crossover.
+            </Remark>
+            <Remark>
+              As a difference of smoothed series, MACD lags price and generates many false crossovers in choppy
+              markets. It is most reliable on daily and weekly bars.
+            </Remark>
+          </Section>
+
+          {/* 6 VWAP */}
+          <Section n="6" id="vwap" title="Volume-Weighted Average Price">
+            <Definition n="6.1" name="VWAP">
+              Let the typical price be <M>{R`\tilde P_t = (H_t + L_t + P_t)/3`}</M> and let <M>{R`\mathcal{S}(t)`}</M> be
+              the bars of the trading session containing <M>{R`t`}</M>, up to and including <M>{R`t`}</M>. Then
+            </Definition>
+            {eq(R`\mathrm{VWAP}_t = \frac{\sum_{s \in \mathcal{S}(t)} \tilde P_s V_s}{\sum_{s \in \mathcal{S}(t)} V_s} .`)}
+            <p>
+              On hourly bars the sum resets at each session. On daily bars, where a session is a single bar,
+              charts use a rolling 20-bar window in place of <M>{R`\mathcal{S}(t)`}</M>.
+            </p>
+            <VwapFigure n={5} rows={spy} />
+            <Remark title="Interpretation">
+              VWAP is the average price paid per share, and institutions use it as an execution benchmark. Price
+              above VWAP suggests buyers are in control; below, sellers. Intraday, price often reverts to VWAP,
+              which then acts as support or resistance.
+            </Remark>
+            <Remark>
+              A few large prints can distort VWAP for thinly traded names, and it becomes less informative as the
+              session ages.
+            </Remark>
+          </Section>
+
+          {/* 7 Risk */}
+          <Section n="7" id="risk" title="Risk and Return Metrics">
+            <p>
+              The quantities in this section and the next are stored per bar in the feature table. Each uses the
+              last <M>{R`n = 195`}</M> hourly returns and the annualization factor <M>{R`A`}</M> of equation (2).
+              Write <M>{R`e_t = r_t - r_f/A`}</M> for the excess return.
+            </p>
+
+            <Subsection n="7.1" title="Volatility">
+              {eq(R`\sigma_{\text{ann}} = \sqrt{A}\; s(r) .`)}
+              <p>The annualized standard deviation of returns: the typical size of a year's move, in percent.</p>
+            </Subsection>
+
+            <Subsection n="7.2" title="Sharpe ratio">
+              {eq(R`\mathrm{Sharpe} = \sqrt{A}\; \frac{\overline{e}}{s(r)} .`)}
+              <p>Excess return earned per unit of total risk. Values above 1 are generally considered good.</p>
+            </Subsection>
+
+            <Subsection n="7.3" title="Sortino ratio">
+              <p>Let <M>{R`\mathcal{D} = \{ i : e_{t-i} < 0 \}`}</M> be the bars with negative excess return, and</p>
+              {eq(R`\delta = \sqrt{ \frac{1}{|\mathcal{D}|} \sum_{i \in \mathcal{D}} e_{t-i}^2 }, \qquad \mathrm{Sortino} = \sqrt{A}\; \frac{\overline{e}}{\delta} .`)}
+              <p>Like Sharpe, but only downside deviation counts as risk, so upside volatility is not penalized.</p>
+            </Subsection>
+
+            <Subsection n="7.4" title="Maximum drawdown">
+              <p>With wealth index <M>{R`W_j = \prod_{i \le j} (1 + r_i)`}</M> over the window,</p>
+              {eq(R`\mathrm{MDD} = \min_j \frac{W_j - \max_{i \le j} W_i}{\max_{i \le j} W_i} \;\le\; 0 .`)}
+              <p>The worst peak-to-trough loss in the window. Values closer to zero are better.</p>
+            </Subsection>
+
+            <Subsection n="7.5" title="Value at risk">
+              <p>Under a Gaussian approximation of hourly returns,</p>
+              {eq(R`\mathrm{VaR}_{95} = \overline{r} + s(r)\,\Phi^{-1}(0.05) \approx \overline{r} - 1.645\, s(r),`)}
+              <p>
+                where <M>{R`\Phi`}</M> is the standard normal CDF: one hour in twenty is expected to be worse
+                than this return.
+              </p>
+              <Remark>
+                Return distributions have fatter tails than the normal (see 7.6), so parametric VaR tends to
+                understate extreme losses.
+              </Remark>
+            </Subsection>
+
+            <Subsection n="7.6" title="Skewness and kurtosis">
+              <p>With central moments <M>{R`\mu_k = \tfrac{1}{n}\sum_i (r_{t-i} - \overline{r})^k`}</M>,</p>
+              {eq(R`\gamma_1 = \frac{\mu_3}{\mu_2^{3/2}}, \qquad \gamma_2 = \frac{\mu_4}{\mu_2^{2}} - 3 .`)}
+              <p>
+                Negative skewness means large losses are more common than large gains. The excess kurtosis
+                <M>{R`\;\gamma_2`}</M> is zero for a normal distribution; positive values indicate fat tails.
+              </p>
+            </Subsection>
+          </Section>
+
+          {/* 8 Market-relative */}
+          <Section n="8" id="market" title="Market-Relative Metrics">
+            <Subsection n="8.1" title="Beta, correlation and R²">
+              {eq(R`\beta = \frac{\operatorname{Cov}(r, m)}{\operatorname{Var}(m)}, \qquad \rho = \operatorname{Corr}(r, m), \qquad R^2 = \rho^2 .`)}
+              <p>
+                <M>{R`\beta`}</M> measures sensitivity to the market: <M>{R`\beta = 1.5`}</M> means the stock moves
+                about 1.5% for a 1% index move. <M>{R`R^2`}</M> is the share of the stock's variance explained
+                by the market, and indicates how meaningful <M>{R`\beta`}</M> is.
+              </p>
+            </Subsection>
+
+            <Subsection n="8.2" title="Jensen's alpha">
+              {eq(R`\alpha = A \left[ \left(\overline{r} - \frac{r_f}{A}\right) - \beta \left(\overline{m} - \frac{r_f}{A}\right) \right] .`)}
+              <p>
+                The annualized return in excess of what the CAPM predicts for the stock's level of market risk.
+                Both legs use excess returns; omitting <M>{R`r_f`}</M> would bias <M>{R`\alpha`}</M> by
+                <M>{R`\; r_f(\beta - 1)`}</M>.
+              </p>
+            </Subsection>
+
+            <Subsection n="8.3" title="Information ratio">
+              {eq(R`\mathrm{IR} = \sqrt{A}\; \frac{\overline{r - m}}{s(r - m)} .`)}
+              <p>
+                Active return over the index per unit of tracking error: how consistently the stock outperforms
+                the market, rather than by how much.
+              </p>
+            </Subsection>
+          </Section>
+
+          <hr className="mt-14 mb-4 border-gray-300" />
+          <p className="text-[0.85rem] text-gray-600">
+            Chart overlays are computed in the browser from the plotted bars; stored metrics are produced by the
+            feature pipeline. None of the quantities above is investment advice.
           </p>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {INDICATORS.map(ind => {
-            const c = COLOR_MAP[ind.color]
-            return (
-              <div key={ind.id} className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden`}>
-                {/* Header */}
-                <div className={`flex items-center gap-3 px-6 py-4 border-l-4 ${c.border} ${c.bg}`}>
-                  <span className="text-2xl">{ind.icon}</span>
-                  <div>
-                    <h2 className={`font-bold text-base ${c.text}`}>{ind.name}</h2>
-                    <span className="text-xs text-gray-400 font-mono">{ind.params}</span>
-                  </div>
-                </div>
-
-                <div className="px-6 py-5 space-y-5">
-                  {/* What it measures */}
-                  <p className="text-sm text-gray-600 leading-relaxed">{ind.what}</p>
-
-                  {/* Formula */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Formula</p>
-                    <pre className={`text-xs font-mono ${c.text} bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 whitespace-pre-wrap leading-relaxed`}>{ind.formula}</pre>
-                    {ind.formulaNote && (
-                      <p className="text-xs text-gray-400 mt-2 italic">{ind.formulaNote}</p>
-                    )}
-                  </div>
-
-                  {/* Signals */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Key Signals</p>
-                    <div className="flex flex-col gap-2">
-                      {ind.signals.map((s, i) => (
-                        <div key={i} className="flex gap-3 items-start">
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded mt-0.5 shrink-0 whitespace-nowrap">{s.level}</span>
-                          <div>
-                            <span className={`text-xs font-bold ${s.color}`}>{s.label}</span>
-                            <span className="text-xs text-gray-500"> — {s.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Two-column: Limitations + Best Used With */}
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Limitations</p>
-                      <ul className="flex flex-col gap-1.5">
-                        {ind.limitations.map((l, i) => (
-                          <li key={i} className="flex gap-2 items-start text-xs text-gray-500">
-                            <span className="text-rose-400 mt-0.5 shrink-0">✕</span>
-                            <span>{l}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Best Used With</p>
-                      <ul className="flex flex-col gap-1.5">
-                        {ind.bestWith.map((b, i) => (
-                          <li key={i} className="flex gap-2 items-start text-xs text-gray-500">
-                            <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
-                            <span>{b}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Timeframes */}
-                  <div className={`rounded-xl border px-4 py-3 ${c.bg} border-gray-100`}>
-                    <p className="text-xs text-gray-600">
-                      <span className={`font-semibold ${c.text}`}>Timeframes: </span>{ind.timeframes}
-                    </p>
-                  </div>
-
-                  {/* Pro tip */}
-                  <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-                    <p className="text-xs text-gray-500"><span className="font-semibold text-gray-700">Pro tip: </span>{ind.tip}</p>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        </article>
       </main>
     </div>
   )

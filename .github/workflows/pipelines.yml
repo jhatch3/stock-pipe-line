@@ -1,0 +1,55 @@
+name: Data pipelines
+
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"   # weekdays after the US close (17:30 ET in summer, 16:30 in winter)
+    - cron: "0 11 * * 1"      # Mondays: refresh AI summaries
+  workflow_dispatch:
+    inputs:
+      run_ai:
+        description: "Also regenerate AI summaries"
+        type: boolean
+        default: false
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+  ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+
+jobs:
+  daily:
+    if: github.event.schedule != '0 11 * * 1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Prices (last 5 days, 1d + 1h)
+        run: python -m pipelines.price_24hr --run --all
+      - name: News
+        run: python -m pipelines.news --run --all
+      - name: Features
+        run: python -m pipelines.features --run --all
+      - name: Dashboard snapshot
+        run: python -m pipelines.snapshot --run --all
+
+  ai:
+    if: github.event.schedule == '0 11 * * 1' || inputs.run_ai
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: AI summaries
+        run: python -m pipelines.ai_agent --run --all

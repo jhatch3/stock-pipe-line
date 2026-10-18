@@ -1,227 +1,389 @@
-import { useState, useEffect, useRef } from 'react'
+// UI: Untitled UI tabs, select, input, pagination, chart styling —
+//   https://www.untitledui.com/react/components/tabs
+//   https://www.untitledui.com/react/components/select
+//   https://www.untitledui.com/react/components/pagination
+//   https://www.untitledui.com/react/components/charts
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer,
+  Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
+} from 'recharts'
+import { SearchLg, Inbox01 } from '@untitledui/icons'
+import { Tabs, TabList } from '@/components/application/tabs/tabs'
+import { PaginationPageDefault } from '@/components/application/pagination/pagination'
+import { Select } from '@/components/base/select/select'
+import { Input } from '@/components/base/input/input'
 import { supabase } from '../lib/supabase.js'
-import { SECTOR_STYLES } from '../lib/constants.js'
-import Header from '../components/Header.jsx'
+import { SECTOR_BADGE_COLOR } from '../lib/constants.js'
+import { CARD, fmtPct, fmtPrice } from '../lib/ui.js'
+import { useTickers } from '../components/AppShell.jsx'
+import SectorBadge from '../components/SectorBadge.jsx'
+import Sparkline from '../components/Sparkline.jsx'
+import PriceChange from '../components/PriceChange.jsx'
 
-// ─── Skeleton Card ────────────────────────────────────────────────────────────
-function SkeletonCard() {
+const PAGE_SIZE = 24
+
+const WINDOWS = [
+  { id: 'chg_1d', label: '1D' },
+  { id: 'chg_1w', label: '1W' },
+  { id: 'chg_1m', label: '1M' },
+]
+
+const SORTS = [
+  { id: 'symbol',       label: 'Name (A–Z)' },
+  { id: 'chg_1d',       label: '1D change' },
+  { id: 'chg_1m',       label: '1M change' },
+  { id: 'rsi',          label: 'RSI' },
+  { id: 'sharpe_ratio', label: 'Sharpe ratio' },
+]
+
+// Badge color name -> Untitled utility palette (chart fills use currentColor)
+const PALETTE = { gray: 'neutral', brand: 'brand', error: 'red', warning: 'yellow', success: 'green' }
+const sectorTextClass = sector => {
+  const c = SECTOR_BADGE_COLOR[sector] ?? 'gray'
+  return `text-utility-${PALETTE[c] ?? c}-500`
+}
+
+const mean = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
+
+function SectionTitle({ title, subtitle, right }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse">
-      <div className="h-5 bg-gray-200 rounded w-16 mb-2" />
-      <div className="h-3 bg-gray-100 rounded w-full mb-3" />
-      <div className="h-4 bg-gray-100 rounded w-20" />
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 className="text-lg font-semibold text-primary">{title}</h2>
+        {subtitle && <p className="text-sm text-tertiary">{subtitle}</p>}
+      </div>
+      {right}
     </div>
   )
 }
 
-// ─── Hero Search ──────────────────────────────────────────────────────────────
-function HeroSearch({ tickers, onSelect }) {
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef(null)
+function WindowTabs({ value, onChange }) {
+  return (
+    <Tabs selectedKey={value} onSelectionChange={onChange}>
+      <TabList type="button-border" size="sm" items={WINDOWS} className="w-max" />
+    </Tabs>
+  )
+}
 
-  const filtered = query.trim()
-    ? tickers
-        .filter(
-          (t) =>
-            t.symbol.toLowerCase().includes(query.toLowerCase()) ||
-            (t.name && t.name.toLowerCase().includes(query.toLowerCase()))
-        )
-        .slice(0, 10)
-    : []
+function ChartTooltip({ active, payload, render }) {
+  if (!active || !payload?.length) return null
+  const [title, sub] = render(payload[0].payload)
+  return (
+    <div className="flex flex-col gap-0.5 rounded-lg bg-primary-solid px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-white">{title}</p>
+      <p className="text-xs text-tooltip-supporting-text">{sub}</p>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    function handleClick(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function handleSelect(symbol) {
-    setQuery('')
-    setOpen(false)
-    onSelect(symbol)
+function sectorAverages(rows, key) {
+  const by = {}
+  for (const r of rows) {
+    if (!r.sector || r[key] == null) continue
+    ;(by[r.sector] ??= []).push(r[key])
   }
+  return Object.entries(by)
+    .map(([sector, xs]) => ({ sector, avg: mean(xs), n: xs.length }))
+    .sort((a, b) => b.avg - a.avg)
+}
+
+// ── KPI cards ────────────────────────────────────────────────────────────────
+function KpiCard({ label, children }) {
+  return (
+    <div className={`${CARD} p-5`}>
+      <p className="text-sm font-medium text-tertiary">{label}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  )
+}
+
+function Kpis({ rows }) {
+  const spy = rows.find(r => r.ticker === 'SPY')
+  const stocks = rows.filter(r => r.sector !== 'ETF' && r.chg_1d != null)
+  const up = stocks.filter(r => r.chg_1d > 0).length
+  const down = stocks.filter(r => r.chg_1d < 0).length
+  const sectors = sectorAverages(stocks, 'chg_1d')
+  const best = sectors[0]
+  const worst = sectors[sectors.length - 1]
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-2xl">
-      <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none">
-          🔍
-        </span>
-        <input
-          type="text"
-          placeholder="Search by ticker symbol or company name…"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setOpen(true)
-          }}
-          onFocus={() => setOpen(true)}
-          className="w-full pl-12 pr-4 py-4 text-base border border-gray-300 rounded-2xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-        />
-      </div>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <KpiCard label="S&P 500 (SPY)">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-display-xs font-semibold text-primary tabular-nums">{fmtPrice(spy?.last_close)}</p>
+            <div className="mt-2"><PriceChange value={spy?.chg_1d} /></div>
+          </div>
+          <Sparkline data={spy?.spark} width={120} height={44} />
+        </div>
+      </KpiCard>
 
-      {open && filtered.length > 0 && (
-        <div className="absolute top-full mt-2 left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50">
-          {filtered.map((t, i) => (
-            <button
-              key={t.symbol}
-              onMouseDown={() => handleSelect(t.symbol)}
-              className={`w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-blue-50 transition-colors ${
-                i !== 0 ? 'border-t border-gray-100' : ''
-              }`}
-            >
-              <span className="font-bold text-gray-900 w-16 shrink-0 text-sm">{t.symbol}</span>
-              <span className="text-sm text-gray-600 truncate flex-1">{t.name}</span>
-              {t.sector && (
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                    SECTOR_STYLES[t.sector] ?? 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {t.sector}
-                </span>
-              )}
-            </button>
+      <KpiCard label="Market breadth (1D)">
+        <p className="text-display-xs font-semibold text-primary tabular-nums">
+          {up} <span className="text-md font-medium text-tertiary">up</span>
+          {' · '}
+          {down} <span className="text-md font-medium text-tertiary">down</span>
+        </p>
+        <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-secondary">
+          <div className="bg-success-solid" style={{ width: `${(up / (up + down || 1)) * 100}%` }} />
+          <div className="bg-error-solid" style={{ width: `${(down / (up + down || 1)) * 100}%` }} />
+        </div>
+      </KpiCard>
+
+      <KpiCard label="Best / worst sector (1D)">
+        <div className="flex flex-col gap-2">
+          {[best, worst].filter(Boolean).map(s => (
+            <div key={s.sector} className="flex items-center justify-between gap-2">
+              <SectorBadge sector={s.sector} />
+              <PriceChange value={s.avg} size="md" />
+            </div>
           ))}
         </div>
-      )}
+      </KpiCard>
     </div>
   )
 }
 
-// ─── Ticker Card ──────────────────────────────────────────────────────────────
-function TickerCard({ ticker, onClick }) {
+// ── Charts ───────────────────────────────────────────────────────────────────
+function SectorPerformance({ rows, win }) {
+  const data = sectorAverages(rows.filter(r => r.sector !== 'ETF'), win).map(s => ({ ...s, pct: s.avg * 100 }))
   return (
-    <button
-      onClick={() => onClick(ticker.symbol)}
-      className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-gray-300 transition-all duration-150 group"
-    >
-      <p className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-        {ticker.symbol}
-      </p>
-      <p className="text-xs text-gray-500 truncate mt-0.5 mb-3">{ticker.name || '—'}</p>
-      {ticker.sector && (
-        <span
-          className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${
-            SECTOR_STYLES[ticker.sector] ?? 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          {ticker.sector}
-        </span>
-      )}
+    <ResponsiveContainer width="100%" height="100%" minHeight={Math.max(260, data.length * 30)}>
+      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+        className="text-tertiary [&_.recharts-text]:text-xs">
+        <CartesianGrid horizontal={false} stroke="currentColor" className="text-utility-neutral-100" />
+        <XAxis type="number" axisLine={false} tickLine={false} fill="currentColor" tickFormatter={v => `${v.toFixed(1)}%`} />
+        <YAxis type="category" dataKey="sector" axisLine={false} tickLine={false} width={150} fill="currentColor" />
+        <Tooltip
+          cursor={{ className: 'fill-utility-neutral-50' }}
+          content={<ChartTooltip render={d => [d.sector, `${fmtPct(d.avg)} avg · ${d.n} stocks`]} />}
+        />
+        <Bar dataKey="pct" radius={[0, 4, 4, 0]} maxBarSize={18}>
+          {data.map(d => (
+            <Cell key={d.sector} fill="currentColor" className={d.pct >= 0 ? 'text-utility-green-500' : 'text-utility-red-500'} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+function Movers({ rows, win, onOpen }) {
+  const ranked = rows.filter(r => r[win] != null).sort((a, b) => b[win] - a[win])
+  const lists = [
+    { title: 'Top gainers', items: ranked.slice(0, 5) },
+    { title: 'Top losers', items: ranked.slice(-5).reverse() },
+  ]
+  return (
+    <div className="flex flex-col gap-6">
+      {lists.map(list => (
+        <div key={list.title}>
+          <p className="mb-1 text-sm font-medium text-tertiary">{list.title}</p>
+          <ul className="divide-y divide-secondary">
+            {list.items.map(r => (
+              <li key={r.ticker}>
+                <button onClick={() => onOpen(r.ticker)}
+                  className="flex w-full items-center gap-3 rounded-md px-1 py-2 text-left hover:bg-primary_hover">
+                  <span className="w-14 shrink-0 text-sm font-semibold text-primary">{r.ticker}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-tertiary">{r.name}</span>
+                  <Sparkline data={r.spark} width={64} height={22} />
+                  <span className="w-24 text-right"><PriceChange value={r[win]} /></span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RiskReturn({ rows, onOpen }) {
+  const bySector = {}
+  for (const r of rows) {
+    if (r.sector === 'ETF' || r.volatility == null || r.chg_1m == null) continue
+    ;(bySector[r.sector] ??= []).push({ ...r, x: r.volatility * 100, y: r.chg_1m * 100 })
+  }
+  return (
+    <>
+    <ResponsiveContainer width="100%" height={360}>
+      <ScatterChart margin={{ left: 0, right: 16, top: 8, bottom: 16 }} className="text-tertiary [&_.recharts-text]:text-xs">
+        <CartesianGrid stroke="currentColor" className="text-utility-neutral-100" />
+        <XAxis type="number" dataKey="x" name="Volatility" axisLine={false} tickLine={false} fill="currentColor"
+          tickFormatter={v => `${v.toFixed(0)}%`}
+          label={{ value: 'Annualized volatility', position: 'insideBottom', offset: -10, fill: 'currentColor' }} />
+        <YAxis type="number" dataKey="y" name="1M return" axisLine={false} tickLine={false} fill="currentColor"
+          tickFormatter={v => `${v.toFixed(0)}%`} width={48} />
+        <ZAxis range={[40, 40]} />
+        <Tooltip
+          cursor={{ strokeDasharray: '3 3' }}
+          content={<ChartTooltip render={d => [`${d.ticker} · ${d.sector}`, `Volatility ${d.x.toFixed(1)}% · 1M ${fmtPct(d.chg_1m)}`]} />}
+        />
+        {Object.entries(bySector).map(([sector, data]) => (
+          <Scatter key={sector} name={sector} data={data} fill="currentColor" fillOpacity={0.75}
+            className={`${sectorTextClass(sector)} cursor-pointer`}
+            onClick={d => onOpen(d.ticker ?? d.payload?.ticker)} />
+        ))}
+      </ScatterChart>
+    </ResponsiveContainer>
+    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
+      {Object.keys(bySector).sort().map(sector => (
+        <li key={sector} className="flex items-center gap-1.5 text-xs text-tertiary">
+          <span className={`size-2.5 rounded-full bg-current ${sectorTextClass(sector)}`} />
+          {sector}
+        </li>
+      ))}
+    </ul>
+    </>
+  )
+}
+
+// ── Ticker grid ──────────────────────────────────────────────────────────────
+function TickerCard({ row, onOpen }) {
+  return (
+    <button onClick={() => onOpen(row.ticker)}
+      className={`${CARD} flex flex-col gap-3 p-4 text-left transition hover:bg-primary_hover`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-md font-semibold text-primary">{row.ticker}</p>
+          <p className="truncate text-xs text-tertiary">{row.name || '—'}</p>
+        </div>
+        <PriceChange value={row.chg_1d} />
+      </div>
+      <div className="flex items-end justify-between gap-2">
+        <SectorBadge sector={row.sector} />
+        <Sparkline data={row.spark} width={80} height={26} />
+      </div>
     </button>
   )
 }
 
-// ─── Home Page ────────────────────────────────────────────────────────────────
-export default function Home() {
-  const [tickers, setTickers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selectedSector, setSelectedSector] = useState('All')
-  const navigate = useNavigate()
+function TickerGrid({ rows, onOpen }) {
+  const [sector, setSector] = useState('All')
+  const [sort, setSort] = useState('symbol')
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
 
-  useEffect(() => {
-    async function fetchTickers() {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('tickers')
-        .select('symbol, name, sector')
-        .order('symbol', { ascending: true })
+  const sectors = useMemo(
+    () => ['All', ...Array.from(new Set(rows.map(r => r.sector).filter(Boolean))).sort()],
+    [rows],
+  )
 
-      if (!error && data) {
-        setTickers(data)
-      }
-      setLoading(false)
-    }
-    fetchTickers()
-  }, [])
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const list = rows.filter(r =>
+      (sector === 'All' || r.sector === sector) &&
+      (!q || r.ticker.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q)))
+    return sort === 'symbol'
+      ? list.sort((a, b) => a.ticker.localeCompare(b.ticker))
+      : list.sort((a, b) => (b[sort] ?? -Infinity) - (a[sort] ?? -Infinity))
+  }, [rows, sector, sort, query])
 
-  function handleSelectTicker(symbol) {
-    navigate(`/ticker/${symbol}`)
-  }
+  useEffect(() => { setPage(1) }, [sector, sort, query])
 
-  // Build sorted unique sector list
-  const sectors = ['All', ...Array.from(new Set(tickers.map((t) => t.sector).filter(Boolean))).sort()]
-
-  const filteredTickers =
-    selectedSector === 'All'
-      ? tickers
-      : tickers.filter((t) => t.sector === selectedSector)
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header tickers={tickers} onSelectTicker={handleSelectTicker} />
+    <div>
+      <div className="mb-4 overflow-x-auto pb-1">
+        <Tabs selectedKey={sector} onSelectionChange={setSector}>
+          <TabList type="button-border" size="sm" items={sectors.map(s => ({ id: s, label: s }))} className="w-max" />
+        </Tabs>
+      </div>
 
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-gray-50 to-white pt-16 pb-12 px-4">
-        <div className="max-w-screen-xl mx-auto flex flex-col items-center text-center gap-6">
-          <div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
-              Stock Analytics Dashboard
-            </h1>
-            <p className="mt-3 text-lg text-gray-500 max-w-xl mx-auto">
-              Explore technical indicators, risk metrics, and fundamentals for 200+ tickers.
-            </p>
-          </div>
-          <HeroSearch tickers={tickers} onSelect={handleSelectTicker} />
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Input icon={SearchLg} size="sm" placeholder="Filter by symbol or name" aria-label="Filter tickers"
+          value={query} onChange={setQuery} className="w-full sm:w-72" />
+        <div className="w-full sm:w-52">
+          <Select aria-label="Sort by" size="sm" items={SORTS} selectedKey={sort} onSelectionChange={k => k && setSort(k)}>
+            {item => <Select.Item id={item.id} label={item.label} />}
+          </Select>
         </div>
-      </section>
+        <span className="text-sm text-tertiary sm:ml-auto">{filtered.length} tickers</span>
+      </div>
 
-      {/* Sector Filter */}
-      <section className="sticky top-14 z-40 bg-white border-b border-gray-100 px-4">
-        <div className="max-w-screen-xl mx-auto">
-          <div className="flex items-center gap-2 py-3 overflow-x-auto">
-            {sectors.map((sector) => (
-              <button
-                key={sector}
-                onClick={() => setSelectedSector(sector)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all shrink-0 ${
-                  selectedSector === sector
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500 hover:text-gray-900'
-                }`}
-              >
-                {sector}
-              </button>
-            ))}
-          </div>
+      {visible.length === 0 ? (
+        <div className="flex flex-col items-center py-16 text-tertiary">
+          <Inbox01 className="mb-3 size-10 text-quaternary" aria-hidden="true" />
+          <p className="text-md font-medium">No tickers found</p>
         </div>
-      </section>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {visible.map(r => <TickerCard key={r.ticker} row={r} onOpen={onOpen} />)}
+        </div>
+      )}
 
-      {/* Ticker Grid */}
-      <main className="max-w-screen-xl mx-auto px-4 py-8">
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {Array.from({ length: 30 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
+      {pages > 1 && <PaginationPageDefault className="mt-6" page={page} total={pages} onPageChange={setPage} />}
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+export default function Home() {
+  const navigate = useNavigate()
+  const tickers = useTickers()
+  const [snapshot, setSnapshot] = useState([])
+  const [win, setWin] = useState('chg_1d')
+
+  useEffect(() => {
+    supabase.from('ticker_snapshot').select('*').then(({ data }) => { if (data) setSnapshot(data) })
+  }, [])
+
+  // One row per ticker: snapshot metrics + name/sector from the shared ticker list
+  const rows = useMemo(() => {
+    const snap = Object.fromEntries(snapshot.map(s => [s.ticker, s]))
+    return tickers.map(t => ({ ...snap[t.symbol], ticker: t.symbol, name: t.name, sector: t.sector }))
+  }, [tickers, snapshot])
+
+  const open = sym => navigate(`/ticker/${sym}`)
+  const loading = !tickers.length || !snapshot.length
+  const asOf = snapshot[0]?.last_ts
+    ? new Date(snapshot[0].last_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : null
+
+  return (
+    <div className="mx-auto max-w-container px-4 py-8 md:px-8">
+      <div className="mb-8">
+        <h1 className="text-display-xs font-semibold text-primary">Market overview</h1>
+        <p className="mt-1 text-md text-tertiary">
+          {tickers.length || '—'} tickers{asOf && <> · prices as of {asOf} close</>}
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {[0, 1, 2].map(i => <div key={i} className={`${CARD} h-32 animate-pulse`} />)}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-8">
+          <Kpis rows={rows} />
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+            <section className={`${CARD} flex flex-col p-5 xl:col-span-3`}>
+              <SectionTitle title="Sector performance" subtitle="Average change per sector"
+                right={<WindowTabs value={win} onChange={setWin} />} />
+              <div className="min-h-0 flex-1"><SectorPerformance rows={rows} win={win} /></div>
+            </section>
+            <section className={`${CARD} p-5 xl:col-span-2`}>
+              <SectionTitle title="Movers" subtitle={`Largest ${WINDOWS.find(w => w.id === win).label} moves`} />
+              <Movers rows={rows} win={win} onOpen={open} />
+            </section>
           </div>
-        ) : filteredTickers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-            <span className="text-5xl mb-4">📭</span>
-            <p className="text-lg font-medium">No tickers found</p>
-            <p className="text-sm mt-1">Try selecting a different sector</p>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-gray-400 mb-4">
-              {filteredTickers.length} ticker{filteredTickers.length !== 1 ? 's' : ''}
-              {selectedSector !== 'All' ? ` in ${selectedSector}` : ''}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {filteredTickers.map((ticker) => (
-                <TickerCard key={ticker.symbol} ticker={ticker} onClick={handleSelectTicker} />
-              ))}
-            </div>
-          </>
-        )}
-      </main>
+
+          <section className={`${CARD} p-5`}>
+            <SectionTitle title="Risk vs. return" subtitle="Each dot is a stock: 30-day volatility vs. 1-month return. Click a dot to open it." />
+            <RiskReturn rows={rows} onOpen={open} />
+          </section>
+
+          <section>
+            <SectionTitle title="All tickers" />
+            <TickerGrid rows={rows} onOpen={open} />
+          </section>
+        </div>
+      )}
     </div>
   )
 }

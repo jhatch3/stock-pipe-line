@@ -43,7 +43,6 @@ def _run(tickers: list[str]):
         try:
             raw = get_raw_ticker_news_data(ticker)
             if raw:
-                commander.store_raw_ticker_news(ticker, raw)
                 cleaned = clean_news_data(raw)
                 commander.store_clean_ticker_news(ticker, cleaned)
                 logger.info("%s | Stored %d articles", ticker, len(cleaned))

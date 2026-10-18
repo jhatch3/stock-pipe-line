@@ -16,12 +16,15 @@ from __future__ import annotations
 
 import logging
 import os
-import json 
+import json
+import time
+import httpx
 from typing import List, Dict, Any, Iterable, Optional
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from postgrest.exceptions import APIError
+from postgrest.types import ReturnMethod
 import pprint
 import datetime as dt 
 import pandas as pd
@@ -44,6 +47,9 @@ KEY = (
 
 assert SUPABASE_URL, "SUPABASE_URL must be set in .env file"
 assert KEY, "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY must be set in .env file"
+
+CHUNK_SIZE = 1000
+MAX_RETRIES = 4
 
 
 class Commander:
@@ -74,14 +80,29 @@ class Commander:
 
         # Supabase upsert accepts on_conflict string (comma-separated)
         on_conflict = ",".join(conflict_columns) if conflict_columns else None
-        if upsert:
-            resp = self.client.table(table_name).upsert(
-                records, on_conflict=on_conflict
-            ).execute()
-        else:
-            resp = self.client.table(table_name).insert(records).execute()
+        count = 0
+        # Chunk so long histories don't exceed request size / statement timeouts
+        for i in range(0, len(records), CHUNK_SIZE):
+            chunk = records[i:i + CHUNK_SIZE]
+            # Retry transient network errors (dropped TLS connections, timeouts)
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    if upsert:
+                        self.client.table(table_name).upsert(
+                            chunk, on_conflict=on_conflict, returning=ReturnMethod.minimal
+                        ).execute()
+                    else:
+                        self.client.table(table_name).insert(
+                            chunk, returning=ReturnMethod.minimal
+                        ).execute()
+                    break
+                except httpx.TransportError as exc:
+                    if attempt == MAX_RETRIES:
+                        raise
+                    logger.warning("%s | write failed (%s), retry %d/%d", table_name, exc, attempt, MAX_RETRIES)
+                    time.sleep(2 ** attempt)
+            count += len(chunk)
 
-        count = len(resp.data or [])
         logger.debug("Supabase upsert/insert into %s -> %d rows", table_name, count)
         return count
 
