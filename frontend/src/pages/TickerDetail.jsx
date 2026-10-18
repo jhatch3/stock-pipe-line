@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { FEATURE_SECTIONS, SECTOR_STYLES } from '../lib/constants.js'
+import { FEATURE_SECTIONS, sectorTagClass } from '../lib/constants.js'
 import Header from '../components/Header.jsx'
 import FeatureSection from '../components/FeatureSection.jsx'
 import PriceChart from '../components/PriceChart.jsx'
@@ -11,11 +11,11 @@ import AgentPanel from '../components/AgentPanel.jsx'
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function SkeletonSection() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden animate-pulse">
+    <div className="bg-white ui-card border border-gray-200 overflow-hidden animate-pulse">
       <div className="h-14 bg-gray-100" />
       <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-gray-100 rounded-xl p-3 h-14" />
+          <div key={i} className="bg-gray-100 ui-tile p-3 h-14" />
         ))}
       </div>
     </div>
@@ -155,14 +155,14 @@ export default function TickerDetail() {
         <span className="text-5xl mb-4">⚠️</span>
         <p className="text-lg font-medium text-gray-700">{error}</p>
         <button onClick={() => navigate('/')}
-          className="mt-6 px-5 py-2 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-700 transition-colors">
+          className="mt-6 px-5 py-2 bg-gray-900 text-white ui-tile text-sm font-medium hover:bg-gray-700 transition-colors">
           ← Back to Dashboard
         </button>
       </div>
     </div>
   )
 
-  const sectorClass  = ticker?.sector ? (SECTOR_STYLES[ticker.sector] ?? 'bg-gray-100 text-gray-600') : null
+  const sectorClass  = ticker?.sector ? sectorTagClass(ticker.sector) : null
   const lastUpdated  = features?.timestamp ? formatTimestamp(features.timestamp) : null
   const change       = price?.prev_close ? price.close - price.prev_close : null
   const changePct    = change !== null ? (change / price.prev_close) * 100 : null
@@ -173,7 +173,7 @@ export default function TickerDetail() {
       <Header tickers={tickers} onSelectTicker={sym => navigate(`/ticker/${sym}`)} />
 
       {/* Sticky sub-header */}
-      <div className="sticky top-14 z-40 bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-14 z-40 bg-white border-b border-gray-200">
         <div className="max-w-screen-xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <button onClick={() => navigate('/')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors font-medium">
@@ -183,12 +183,12 @@ export default function TickerDetail() {
           <span className="text-2xl font-extrabold text-gray-900 tracking-tight">{ticker?.symbol}</span>
           {ticker?.name && <span className="text-base text-gray-500 font-medium hidden sm:block">{ticker.name}</span>}
           {ticker?.sector && (
-            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${sectorClass}`}>{ticker.sector}</span>
+            <span className={`text-xs px-2.5 py-1 font-semibold ${sectorClass}`}>{ticker.sector}</span>
           )}
           <div className="ml-auto flex items-center gap-3">
             {lastUpdated && <span className="text-xs text-gray-400 hidden md:block">Updated {lastUpdated}</span>}
             <button onClick={() => navigate(`/compare?tickers=${symbol}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-300 ui-btn text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors">
               ⇄ Compare
             </button>
           </div>

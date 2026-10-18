@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { formatValue, SECTOR_STYLES } from '../lib/constants.js'
+import { formatValue, sectorTagClass } from '../lib/constants.js'
 
 // higherBetter: true = rank 1 is highest value, false = rank 1 is lowest, null = no rank badge
 const COLUMNS = [
@@ -89,17 +89,17 @@ export default function SectorCompareTable({ symbol, sector }) {
     return sortAsc ? cmp : -cmp
   })
 
-  const sectorClass = SECTOR_STYLES[sector] ?? 'bg-gray-100 text-gray-600'
+  const sectorClass = sectorTagClass(sector)
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-200 ui-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2">
           <span className="text-lg">🏢</span>
           <h3 className="font-semibold text-gray-900 text-sm">Sector Comparison</h3>
           {sector && (
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sectorClass}`}>
+            <span className={`text-xs px-2 py-0.5 font-medium ${sectorClass}`}>
               {sector}
             </span>
           )}

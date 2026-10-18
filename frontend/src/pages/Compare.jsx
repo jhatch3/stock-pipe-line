@@ -5,7 +5,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { supabase } from '../lib/supabase.js'
-import { FEATURE_SECTIONS, SECTOR_STYLES, formatValue } from '../lib/constants.js'
+import { FEATURE_SECTIONS, sectorTagClass, formatValue } from '../lib/constants.js'
 import Header from '../components/Header.jsx'
 
 const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
@@ -42,7 +42,7 @@ function fmt(ts) {
 function NormalizedTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs">
+    <div className="bg-white border border-gray-200 ui-tile shadow-lg p-3 text-xs">
       <p className="font-semibold text-gray-600 mb-1">{label}</p>
       {payload.map(p => (
         <div key={p.dataKey} className="flex items-center gap-2">
@@ -95,11 +95,11 @@ function TickerSearch({ tickers, selected, onAdd }) {
           disabled={selected.length >= MAX_TICKERS}
           onChange={e => { setQuery(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 ui-tile bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
       {open && filtered.length > 0 && (
-        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50">
+        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 ui-tile shadow-xl overflow-hidden z-50">
           {filtered.map(t => (
             <button
               key={t.symbol}
@@ -109,7 +109,7 @@ function TickerSearch({ tickers, selected, onAdd }) {
               <span className="font-bold text-sm text-gray-900 w-14 shrink-0">{t.symbol}</span>
               <span className="text-xs text-gray-500 truncate flex-1">{t.name}</span>
               {t.sector && (
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${SECTOR_STYLES[t.sector] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span className={`text-xs px-2 py-0.5 font-medium shrink-0 ${sectorTagClass(t.sector)}`}>
                   {t.sector}
                 </span>
               )}
@@ -243,7 +243,7 @@ export default function Compare() {
           {selected.map((sym, i) => (
             <div
               key={sym}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-semibold"
+              className="flex items-center gap-2 px-3 py-1.5 ui-tag border text-sm font-semibold"
               style={{ borderColor: COLORS[i], color: COLORS[i], background: `${COLORS[i]}12` }}
             >
               <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i] }} />
@@ -272,7 +272,7 @@ export default function Compare() {
         ) : (
           <>
             {/* Chart */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6">
+            <div className="bg-white border border-gray-200 ui-card p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-semibold text-gray-800">Relative Performance</h2>
@@ -283,7 +283,7 @@ export default function Compare() {
                     <button
                       key={r.label}
                       onClick={() => setRange(r.label)}
-                      className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                      className={`px-2.5 py-1 text-xs font-medium ui-btn transition-colors ${
                         range === r.label ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
@@ -294,7 +294,7 @@ export default function Compare() {
               </div>
 
               {loadingChart ? (
-                <div className="h-64 bg-gray-50 rounded-xl animate-pulse" />
+                <div className="h-64 bg-gray-50 ui-tile animate-pulse" />
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -336,7 +336,7 @@ export default function Compare() {
             </div>
 
             {/* Metrics comparison table */}
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="bg-white border border-gray-200 ui-card overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
                 <h2 className="font-semibold text-gray-800">Metrics Comparison</h2>
               </div>

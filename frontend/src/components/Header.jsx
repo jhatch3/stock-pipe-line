@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SECTOR_STYLES } from '../lib/constants.js'
+import { sectorTagClass } from '../lib/constants.js'
 
 export default function Header({ tickers = [], onSelectTicker }) {
   const [query, setQuery] = useState('')
@@ -40,7 +40,7 @@ export default function Header({ tickers = [], onSelectTicker }) {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-screen-xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
         <button
@@ -82,12 +82,12 @@ export default function Header({ tickers = [], onSelectTicker }) {
                 setOpen(true)
               }}
               onFocus={() => setOpen(true)}
-              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 ui-btn bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
             />
           </div>
 
           {open && filtered.length > 0 && (
-            <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
+            <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 ui-tile shadow-lg overflow-hidden z-50">
               {filtered.map((t) => (
                 <button
                   key={t.symbol}
@@ -100,9 +100,7 @@ export default function Header({ tickers = [], onSelectTicker }) {
                   <span className="text-xs text-gray-500 truncate flex-1">{t.name}</span>
                   {t.sector && (
                     <span
-                      className={`text-xs px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
-                        SECTOR_STYLES[t.sector] ?? 'bg-gray-100 text-gray-600'
-                      }`}
+                      className={`text-xs px-1.5 py-0.5 font-medium shrink-0 ${sectorTagClass(t.sector)}`}
                     >
                       {t.sector}
                     </span>

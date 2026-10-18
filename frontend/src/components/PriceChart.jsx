@@ -65,7 +65,7 @@ function PriceTooltip({ active, payload, showBB, showVWAP, showSMA50, showSMA200
     showSMA200&& d.sma200!= null && ['SMA200',d.sma200],
   ].filter(Boolean)
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs min-w-[170px]">
+    <div className="bg-white border border-gray-200 ui-tile shadow-lg p-3 text-xs min-w-[170px]">
       <p className="font-semibold text-gray-600 mb-2">{fmtDate(d.timestamp, interval)}</p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-gray-600">
         <span>O</span><span className="text-right font-medium">${Number(d.open).toFixed(2)}</span>
@@ -93,7 +93,7 @@ function VolumeTooltip({ active, payload, interval }) {
   const d = payload[0]?.payload
   if (!d) return null
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-2.5 py-1.5 text-xs">
+    <div className="bg-white border border-gray-200 ui-btn shadow-md px-2.5 py-1.5 text-xs">
       <p className="text-gray-400 mb-0.5">{fmtDate(d.timestamp, interval)}</p>
       <span className="font-semibold text-gray-800">Vol {fmtVol(Number(d.volume))}</span>
     </div>
@@ -106,7 +106,7 @@ function RSITooltip({ active, payload, interval }) {
   const d = payload[0]?.payload
   const color = v > 70 ? '#EF4444' : v < 30 ? '#10B981' : '#8B5CF6'
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-2.5 py-1.5 text-xs">
+    <div className="bg-white border border-gray-200 ui-btn shadow-md px-2.5 py-1.5 text-xs">
       {d && <p className="text-gray-400 mb-0.5">{fmtDate(d.timestamp, interval)}</p>}
       <span className="font-semibold" style={{ color }}>RSI {v.toFixed(1)}</span>
     </div>
@@ -118,7 +118,7 @@ function MACDTooltip({ active, payload, interval }) {
   const row = payload[0]?.payload
   if (!row) return null
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md px-3 py-2 text-xs space-y-0.5">
+    <div className="bg-white border border-gray-200 ui-btn shadow-md px-3 py-2 text-xs space-y-0.5">
       <p className="text-gray-400 mb-1">{fmtDate(row.timestamp, interval)}</p>
       {row.macd        != null && <p><span className="text-blue-600 font-semibold">MACD </span>{Number(row.macd).toFixed(4)}</p>}
       {row.macd_signal != null && <p><span className="text-orange-500 font-semibold">Sig  </span>{Number(row.macd_signal).toFixed(4)}</p>}
@@ -195,7 +195,7 @@ function RangeBar({ range, setRange }) {
         <button
           key={r.label}
           onClick={() => setRange(r.label)}
-          className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+          className={`px-2.5 py-1 text-xs font-medium ui-btn transition-colors ${
             range === r.label ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-100'
           }`}
         >
@@ -211,7 +211,7 @@ function OverlayBtn({ label, active, bg, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
+      className={`px-2.5 py-1 text-xs font-semibold ui-btn border transition-all ${
         active ? 'border-transparent text-white' : 'border-gray-300 text-gray-500 hover:border-gray-400'
       }`}
       style={active ? { background: bg } : {}}
@@ -376,18 +376,18 @@ export default function PriceChart({ ticker, sector }) {
 
   if (loading) return (
     <div className="space-y-3">
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="bg-white border border-gray-200 ui-card p-5">
         <div className="h-8 w-64 bg-gray-100 rounded animate-pulse mb-3" />
-        <div className="h-[320px] bg-gray-50 rounded-xl animate-pulse" />
+        <div className="h-[320px] bg-gray-50 ui-tile animate-pulse" />
       </div>
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
-        <div className="h-[160px] bg-gray-50 rounded-xl animate-pulse" />
+      <div className="bg-white border border-gray-200 ui-card p-5">
+        <div className="h-[160px] bg-gray-50 ui-tile animate-pulse" />
       </div>
     </div>
   )
 
   if (!displayData.length) return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+    <div className="bg-white border border-gray-200 ui-card p-5">
       <div className="h-40 flex items-center justify-center text-gray-400 text-sm">
         No price data available
       </div>
@@ -398,7 +398,7 @@ export default function PriceChart({ ticker, sector }) {
     <div className="space-y-3">
 
       {/* ── Card 1: Price chart ──────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="bg-white border border-gray-200 ui-card p-5">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <RangeBar range={range} setRange={setRange} />
@@ -467,12 +467,12 @@ export default function PriceChart({ ticker, sector }) {
       </div>
 
       {/* ── Card 2: Indicator panel ──────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5">
+      <div className="bg-white border border-gray-200 ui-card p-5">
         <div className="flex items-center justify-between mb-4">
           <select
             value={subPanel}
             onChange={e => setSubPanel(e.target.value)}
-            className="text-xs font-semibold text-gray-700 bg-gray-100 border-0 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-300 cursor-pointer"
+            className="text-xs font-semibold text-gray-700 bg-gray-100 border-0 ui-btn px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-300 cursor-pointer"
           >
             {SUB_PANELS.map(p => (
               <option key={p.value} value={p.value}>{p.label}</option>
@@ -510,7 +510,7 @@ export default function PriceChart({ ticker, sector }) {
                 { label: 'Volatility',r: sectorRanks.vol },
                 { label: 'Max DD',    r: sectorRanks.drawdown },
               ].filter(x => x.r).map(({ label, r }) => (
-                <span key={label} className="inline-flex items-center gap-1 bg-gray-100 rounded-lg px-2.5 py-1 text-xs">
+                <span key={label} className="inline-flex items-center gap-1 bg-gray-100 ui-btn px-2.5 py-1 text-xs">
                   <span className="text-gray-500">{label}</span>
                   <span className="font-bold text-gray-800">#{r.rank}</span>
                   <span className="text-gray-400">/ {r.total}</span>

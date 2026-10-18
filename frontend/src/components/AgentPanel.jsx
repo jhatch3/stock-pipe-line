@@ -27,13 +27,13 @@ export default function AgentPanel({ ticker }) {
       : null
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-200 ui-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-l-4 border-blue-500 bg-blue-50">
         <div className="flex items-center gap-2">
           <span className="text-lg">🤖</span>
           <h3 className="font-semibold text-gray-900 text-sm">AI Analysis</h3>
-          <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full font-medium">GPT-4o mini</span>
+          <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 ui-tag font-medium">GPT-4o mini</span>
         </div>
         {analysis?.as_of_utc && (
           <span className="text-xs text-gray-400">{fmtTime(analysis.as_of_utc)}</span>

@@ -178,7 +178,7 @@ export default function Indicators() {
           {INDICATORS.map(ind => {
             const c = COLOR_MAP[ind.color]
             return (
-              <div key={ind.id} className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden`}>
+              <div key={ind.id} className={`bg-white ui-card border border-gray-200 overflow-hidden`}>
                 {/* Header */}
                 <div className={`flex items-center gap-3 px-6 py-4 border-l-4 ${c.border} ${c.bg}`}>
                   <span className="text-2xl">{ind.icon}</span>
@@ -195,7 +195,7 @@ export default function Indicators() {
                   {/* Formula */}
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Formula</p>
-                    <pre className={`text-xs font-mono ${c.text} bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 whitespace-pre-wrap leading-relaxed`}>{ind.formula}</pre>
+                    <pre className={`text-xs font-mono ${c.text} bg-gray-50 border border-gray-100 ui-tile px-4 py-3 whitespace-pre-wrap leading-relaxed`}>{ind.formula}</pre>
                     {ind.formulaNote && (
                       <p className="text-xs text-gray-400 mt-2 italic">{ind.formulaNote}</p>
                     )}
@@ -244,14 +244,14 @@ export default function Indicators() {
                   </div>
 
                   {/* Timeframes */}
-                  <div className={`rounded-xl border px-4 py-3 ${c.bg} border-gray-100`}>
+                  <div className={`ui-tile border px-4 py-3 ${c.bg} border-gray-100`}>
                     <p className="text-xs text-gray-600">
                       <span className={`font-semibold ${c.text}`}>Timeframes: </span>{ind.timeframes}
                     </p>
                   </div>
 
                   {/* Pro tip */}
-                  <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                  <div className="bg-gray-50 border border-gray-100 ui-tile px-4 py-3">
                     <p className="text-xs text-gray-500"><span className="font-semibold text-gray-700">Pro tip: </span>{ind.tip}</p>
                   </div>
                 </div>

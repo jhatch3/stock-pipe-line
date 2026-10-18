@@ -88,11 +88,16 @@ def _ensure_tables() -> None:
 
 
 # --- Pipeline steps ---------------------------------------------------------
-def pull_data(ticker: str, interval: str = "1d") -> pd.DataFrame:
-    """Fetch full available history for a ticker from Yahoo Finance."""
+# History kept per interval (sized for Supabase free tier; Yahoo caps 1h at 730d)
+HISTORY_PERIOD = {"1d": "10y", "1h": "730d"}
+
+
+def pull_data(ticker: str, interval: str = "1d", start=None) -> pd.DataFrame:
+    """Fetch history for a ticker from Yahoo Finance: from `start` if given, else HISTORY_PERIOD."""
+    window = {"start": start} if start is not None else {"period": HISTORY_PERIOD.get(interval, "max")}
     df = yf.download(
-        tickers=ticker,
-        period="max",
+        tickers=ticker.replace(".", "-"),  # Yahoo uses BF-B, not BF.B
+        **window,
         interval=interval,
         auto_adjust=False,
         progress=False,
@@ -215,12 +220,12 @@ def store_clean(ticker: str, cleaned: Iterable[Dict[str, Any]]) -> None:
 # --- Orchestrator (keeps legacy signature) ----------------------------------
 def process_stock_data(
     ticker: str,
-    start_date=None,  # ignored for max history
-    end_date=None,    # ignored for max history
+    start_date=None,  # None = full HISTORY_PERIOD backfill
+    end_date=None,    # unused; always fetches up to now
     interval: str = "1d",
 ):
-    raw_df = pull_data(ticker, interval=interval)
-    store_raw(ticker, raw_df, interval)
+    raw_df = pull_data(ticker, interval=interval, start=start_date)
+    # Raw JSON is no longer persisted (see README "Free-tier storage")
     cleaned = clean(ticker, raw_df, interval)
     store_clean(ticker, cleaned)
     return cleaned
@@ -231,18 +236,17 @@ def populate_all_tickers():
     logger.info("Populating all the Historical Data for Each Ticker: %d total", len(TICKERS))
     for ticker in TICKERS:
         logger.info("Processing %s's Historical data", ticker)
-        process_stock_data(ticker, interval="1d")
-        process_stock_data(ticker, interval="1h")
-        process_stock_data(ticker, interval="30m")
-        process_stock_data(ticker, interval="1m")
+        for interval in ("1d", "1h"):
+            try:
+                process_stock_data(ticker, interval=interval)
+            except Exception as exc:
+                logger.error("%s | Interval: %s | Failed: %s", ticker, interval, exc)
 
 def populate_one_ticker(ticker: str):
     _ensure_tables()
     logger.info("Populating the Historical Data for Ticker: %s", ticker)
     process_stock_data(ticker, interval="1d")
     process_stock_data(ticker, interval="1h")
-    process_stock_data(ticker, interval="30m")
-    process_stock_data(ticker, interval="1m")
 
 
 def refill_all_tickers(look_back_amount: int = 3):
@@ -260,8 +264,6 @@ def refill_all_tickers(look_back_amount: int = 3):
         logger.info("Processing %s | Start: %s | End: %s", ticker, start_day, end_day)
         process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1d")
         process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1h")
-        process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="30m")
-        process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1m")
 
 def refill_one_ticker(ticker: str, look_back_amount: int = 3):
     """Refill a single ticker with historical data for the last `look_back_amount` days."""
@@ -276,8 +278,6 @@ def refill_one_ticker(ticker: str, look_back_amount: int = 3):
     logger.info("Refilling the Historical Data for Ticker: %s | Start: %s | End: %s", ticker, start_day, end_day)
     process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1d")
     process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1h")
-    process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="30m")
-    process_stock_data(ticker, start_date=start_day, end_date=end_day, interval="1m")
 
 
 async def main(args: List[str]):

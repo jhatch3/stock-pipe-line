@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
-import { SECTOR_STYLES } from '../lib/constants.js'
+import { sectorTagClass } from '../lib/constants.js'
 import Header from '../components/Header.jsx'
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse">
+    <div className="bg-white border border-gray-200 ui-tile p-4 animate-pulse">
       <div className="h-5 bg-gray-200 rounded w-16 mb-2" />
       <div className="h-3 bg-gray-100 rounded w-full mb-3" />
       <div className="h-4 bg-gray-100 rounded w-20" />
@@ -62,12 +62,12 @@ function HeroSearch({ tickers, onSelect }) {
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
-          className="w-full pl-12 pr-4 py-4 text-base border border-gray-300 rounded-2xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          className="w-full pl-12 pr-4 py-4 text-base border border-gray-300 ui-card bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
         />
       </div>
 
       {open && filtered.length > 0 && (
-        <div className="absolute top-full mt-2 left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50">
+        <div className="absolute top-full mt-2 left-0 right-0 bg-white border border-gray-200 ui-card shadow-xl overflow-hidden z-50">
           {filtered.map((t, i) => (
             <button
               key={t.symbol}
@@ -80,9 +80,7 @@ function HeroSearch({ tickers, onSelect }) {
               <span className="text-sm text-gray-600 truncate flex-1">{t.name}</span>
               {t.sector && (
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                    SECTOR_STYLES[t.sector] ?? 'bg-gray-100 text-gray-600'
-                  }`}
+                  className={`text-xs px-2 py-0.5 font-medium shrink-0 ${sectorTagClass(t.sector)}`}
                 >
                   {t.sector}
                 </span>
@@ -100,7 +98,7 @@ function TickerCard({ ticker, onClick }) {
   return (
     <button
       onClick={() => onClick(ticker.symbol)}
-      className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-gray-300 transition-all duration-150 group"
+      className="bg-white border border-gray-200 ui-tile p-4 text-left hover:shadow-md hover:border-gray-300 transition-all duration-150 group"
     >
       <p className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
         {ticker.symbol}
@@ -108,9 +106,7 @@ function TickerCard({ ticker, onClick }) {
       <p className="text-xs text-gray-500 truncate mt-0.5 mb-3">{ticker.name || '—'}</p>
       {ticker.sector && (
         <span
-          className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${
-            SECTOR_STYLES[ticker.sector] ?? 'bg-gray-100 text-gray-600'
-          }`}
+          className={`inline-block text-xs px-2 py-0.5 font-medium ${sectorTagClass(ticker.sector)}`}
         >
           {ticker.sector}
         </span>
@@ -181,7 +177,7 @@ export default function Home() {
               <button
                 key={sector}
                 onClick={() => setSelectedSector(sector)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all shrink-0 ${
+                className={`whitespace-nowrap px-4 py-1.5 ui-tag text-sm font-medium border transition-all shrink-0 ${
                   selectedSector === sector
                     ? 'bg-gray-900 text-white border-gray-900'
                     : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500 hover:text-gray-900'

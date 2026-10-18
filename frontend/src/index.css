@@ -8,6 +8,33 @@
   }
 }
 
+/* ── Shared UI shapes ─────────────────────────────────────────────────────── */
+@layer components {
+  .ui-card { border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+  .ui-tile { border-radius: 4px; }
+  .ui-btn  { border-radius: 4px; }
+  .ui-tag  { border-radius: 2px; }
+}
+
+/* Sector tags (outside @layer so Tailwind keeps the dynamically built .s-* classes) */
+.tag-sector {
+  --c: #6b7280;
+  background: color-mix(in srgb, var(--c) 14%, white);
+  color: color-mix(in srgb, var(--c) 80%, black);
+}
+.s-technology              { --c: #2563eb; }
+.s-financial-services      { --c: #059669; }
+.s-healthcare              { --c: #e11d48; }
+.s-industrials             { --c: #475569; }
+.s-energy                  { --c: #d97706; }
+.s-consumer-cyclical       { --c: #ea580c; }
+.s-consumer-defensive      { --c: #65a30d; }
+.s-utilities               { --c: #0891b2; }
+.s-basic-materials         { --c: #78716c; }
+.s-communication-services  { --c: #7c3aed; }
+.s-real-estate             { --c: #0d9488; }
+.s-etf                     { --c: #4f46e5; }
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

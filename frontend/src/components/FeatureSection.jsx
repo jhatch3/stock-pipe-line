@@ -4,7 +4,7 @@ export default function FeatureSection({ section, data, ranks }) {
   const colors = SECTION_COLORS[section.color] ?? SECTION_COLORS['blue']
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white ui-card border border-gray-200 overflow-hidden">
       {/* Header */}
       <div className={`flex items-center justify-between px-5 py-4 border-l-4 ${colors.borderColor} ${colors.headerBg}`}>
         <div className="flex items-center gap-2">
@@ -27,7 +27,7 @@ export default function FeatureSection({ section, data, ranks }) {
           return (
             <div
               key={field.key}
-              className="bg-gray-50 rounded-xl p-3 hover:bg-gray-100 transition-colors"
+              className="bg-gray-50 ui-tile p-3 hover:bg-gray-100 transition-colors"
             >
               <p className="text-[11px] text-gray-500 leading-tight mb-1">{field.label}</p>
               <p className={`text-sm font-semibold tabular-nums ${isMissing ? 'text-gray-300' : colors.accentText}`}>

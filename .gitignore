@@ -209,3 +209,8 @@ __marimo__/
 
 *.KEYS
 *.keys
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+!frontend/src/lib/
