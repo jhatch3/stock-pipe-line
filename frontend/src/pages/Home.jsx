@@ -1,7 +1,6 @@
-// UI: Untitled UI tabs, select, input, badges, pagination, chart styling —
+// UI: Untitled UI tabs, select, input, pagination, chart styling —
 //   https://www.untitledui.com/react/components/tabs
 //   https://www.untitledui.com/react/components/select
-//   https://www.untitledui.com/react/components/badges
 //   https://www.untitledui.com/react/components/pagination
 //   https://www.untitledui.com/react/components/charts
 import { useEffect, useMemo, useState } from 'react'
@@ -15,14 +14,14 @@ import { Tabs, TabList } from '@/components/application/tabs/tabs'
 import { PaginationPageDefault } from '@/components/application/pagination/pagination'
 import { Select } from '@/components/base/select/select'
 import { Input } from '@/components/base/input/input'
-import { Badge } from '@/components/base/badges/badges'
 import { supabase } from '../lib/supabase.js'
 import { SECTOR_BADGE_COLOR } from '../lib/constants.js'
+import { CARD, fmtPct, fmtPrice } from '../lib/ui.js'
 import { useTickers } from '../components/AppShell.jsx'
 import SectorBadge from '../components/SectorBadge.jsx'
 import Sparkline from '../components/Sparkline.jsx'
+import PriceChange from '../components/PriceChange.jsx'
 
-const CARD = 'rounded-xl bg-primary shadow-xs ring-1 ring-secondary ring-inset'
 const PAGE_SIZE = 24
 
 const WINDOWS = [
@@ -46,18 +45,7 @@ const sectorTextClass = sector => {
   return `text-utility-${PALETTE[c] ?? c}-500`
 }
 
-const fmtPct = v => (v == null ? '—' : `${v >= 0 ? '+' : ''}${(v * 100).toFixed(2)}%`)
-const fmtPrice = v => (v == null ? '—' : `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
 const mean = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
-
-function ChangeBadge({ value }) {
-  if (value == null) return <span className="text-xs text-quaternary">—</span>
-  return (
-    <Badge type="color" size="sm" color={value >= 0 ? 'success' : 'error'}>
-      {fmtPct(value)}
-    </Badge>
-  )
-}
 
 function SectionTitle({ title, subtitle, right }) {
   return (
@@ -126,7 +114,7 @@ function Kpis({ rows }) {
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-display-xs font-semibold text-primary tabular-nums">{fmtPrice(spy?.last_close)}</p>
-            <div className="mt-2"><ChangeBadge value={spy?.chg_1d} /></div>
+            <div className="mt-2"><PriceChange value={spy?.chg_1d} /></div>
           </div>
           <Sparkline data={spy?.spark} width={120} height={44} />
         </div>
@@ -149,9 +137,7 @@ function Kpis({ rows }) {
           {[best, worst].filter(Boolean).map(s => (
             <div key={s.sector} className="flex items-center justify-between gap-2">
               <SectorBadge sector={s.sector} />
-              <span className={`text-md font-semibold tabular-nums ${s.avg >= 0 ? 'text-success-primary' : 'text-error-primary'}`}>
-                {fmtPct(s.avg)}
-              </span>
+              <PriceChange value={s.avg} size="md" />
             </div>
           ))}
         </div>
@@ -203,7 +189,7 @@ function Movers({ rows, win, onOpen }) {
                   <span className="w-14 shrink-0 text-sm font-semibold text-primary">{r.ticker}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-tertiary">{r.name}</span>
                   <Sparkline data={r.spark} width={64} height={22} />
-                  <span className="w-20 text-right"><ChangeBadge value={r[win]} /></span>
+                  <span className="w-24 text-right"><PriceChange value={r[win]} /></span>
                 </button>
               </li>
             ))}
@@ -264,7 +250,7 @@ function TickerCard({ row, onOpen }) {
           <p className="text-md font-semibold text-primary">{row.ticker}</p>
           <p className="truncate text-xs text-tertiary">{row.name || '—'}</p>
         </div>
-        <ChangeBadge value={row.chg_1d} />
+        <PriceChange value={row.chg_1d} />
       </div>
       <div className="flex items-end justify-between gap-2">
         <SectorBadge sector={row.sector} />
