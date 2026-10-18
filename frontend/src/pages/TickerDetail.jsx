@@ -1,12 +1,13 @@
 // UI: Untitled UI buttons, badges, tables —
 //   https://www.untitledui.com/react/components/buttons
 //   https://www.untitledui.com/react/components/tables
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Inbox01, SwitchHorizontal01 } from '@untitledui/icons'
 import { Button } from '@/components/base/buttons/button'
 import { supabase } from '../lib/supabase.js'
 import { CARD, fmtPrice } from '../lib/ui.js'
+import { computeIndicators } from '../lib/indicators.js'
 import SectorBadge from '../components/SectorBadge.jsx'
 import PriceChange from '../components/PriceChange.jsx'
 import PriceChart from '../components/PriceChart.jsx'
@@ -15,6 +16,7 @@ import NewsFeed from '../components/NewsFeed.jsx'
 import MetricsTables from '../components/MetricsTables.jsx'
 import SectorCompareTable from '../components/SectorCompareTable.jsx'
 import { RsiGauge, RankRings, SectorRadar, ValuationBars } from '../components/TickerVisuals.jsx'
+import { KeyStats, DailySignals } from '../components/TickerSidebar.jsx'
 
 function formatTimestamp(ts) {
   if (!ts) return null
@@ -41,7 +43,7 @@ export default function TickerDetail() {
 
   const [ticker,         setTicker]         = useState(null)
   const [features,       setFeatures]       = useState(null)
-  const [price,          setPrice]          = useState(null)
+  const [bars,           setBars]           = useState([])
   const [sectorFeatures, setSectorFeatures] = useState([])
   const [loading,        setLoading]        = useState(true)
   const [error,          setError]          = useState(null)
@@ -56,13 +58,15 @@ export default function TickerDetail() {
       const [
         { data: tickerData, error: tickerError },
         { data: featuresData },
-        { data: priceRows },
+        { data: dailyRows },
       ] = await Promise.all([
         supabase.from('tickers').select('*').eq('symbol', symbol).single(),
         supabase.from('stock_features').select('*').eq('ticker', symbol).eq('interval', '1h')
           .order('timestamp', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('stock_clean_data_yf').select('close,timestamp').eq('ticker', symbol)
-          .eq('interval', '1d').order('timestamp', { ascending: false }).limit(2),
+        // ~1.5 years of daily bars: price, 52-week range and daily signals (SMA 200 needs warmup)
+        supabase.from('stock_clean_data_yf').select('timestamp,open,high,low,close,volume').eq('ticker', symbol)
+          .eq('interval', '1d').gte('timestamp', new Date(Date.now() - 550 * 864e5).toISOString())
+          .order('timestamp', { ascending: true }),
       ])
 
       if (tickerError || !tickerData) {
@@ -72,11 +76,7 @@ export default function TickerDetail() {
       }
       setTicker(tickerData)
       setFeatures(featuresData ?? null)
-      setPrice(priceRows?.length ? {
-        close:      priceRows[0].close,
-        prev_close: priceRows[1]?.close ?? null,
-        timestamp:  priceRows[0].timestamp,
-      } : null)
+      setBars(dailyRows ?? [])
       setLoading(false)
     }
     fetchData()
@@ -100,6 +100,8 @@ export default function TickerDetail() {
     fetchSectorFeatures()
   }, [ticker?.sector])
 
+  const daily = useMemo(() => (bars.length ? computeIndicators(bars) : []), [bars])
+
   // ── Loading / error ──────────────────────────────────────────────────────
   if (loading) return (
     <div className="mx-auto max-w-container px-4 py-8 md:px-8">
@@ -119,8 +121,10 @@ export default function TickerDetail() {
   )
 
   const lastUpdated = features?.timestamp ? formatTimestamp(features.timestamp) : null
-  const change      = price?.prev_close ? price.close - price.prev_close : null
-  const changeFrac  = change !== null ? change / price.prev_close : null
+  const close       = bars.at(-1)?.close ?? null
+  const prevClose   = bars.at(-2)?.close ?? null
+  const change      = close != null && prevClose ? close - prevClose : null
+  const changeFrac  = change !== null ? change / prevClose : null
   const peers       = sectorFeatures
 
   return (
@@ -141,7 +145,7 @@ export default function TickerDetail() {
 
       {/* Price */}
       <div className="mb-4 flex flex-wrap items-baseline gap-3">
-        <span className="text-display-md font-semibold text-primary tabular-nums">{fmtPrice(price?.close)}</span>
+        <span className="text-display-md font-semibold text-primary tabular-nums">{fmtPrice(close)}</span>
         {change !== null && (
           <span className="flex items-baseline gap-2">
             <PriceChange value={changeFrac} size="lg" />
@@ -153,48 +157,58 @@ export default function TickerDetail() {
         <span className="text-xs text-quaternary">daily close · 1D change</span>
       </div>
 
-      <div className="flex flex-col gap-6">
-        <PriceChart ticker={symbol} />
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <PriceChart ticker={symbol} />
+          <AgentPanel ticker={symbol} />
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2"><AgentPanel ticker={symbol} /></div>
-          <NewsFeed ticker={symbol} />
-        </div>
+          {!features ? (
+            <div className={`${CARD} flex flex-col items-center justify-center py-16 text-center`}>
+              <Inbox01 className="mb-3 size-10 text-fg-quaternary" aria-hidden="true" />
+              <p className="text-lg font-medium text-primary">No feature data yet</p>
+              <p className="mt-1 text-sm text-tertiary">
+                Run <code className="rounded bg-secondary px-1">python -m pipelines.features --run {symbol}</code> to compute it.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <Card title="RSI (14)" subtitle="Momentum: below 30 oversold, above 70 overbought">
+                  <RsiGauge value={features.rsi} />
+                </Card>
+                <DailySignals daily={daily} />
+              </div>
 
-        {!features ? (
-          <div className={`${CARD} flex flex-col items-center justify-center py-16 text-center`}>
-            <Inbox01 className="mb-3 size-10 text-fg-quaternary" aria-hidden="true" />
-            <p className="text-lg font-medium text-primary">No feature data yet</p>
-            <p className="mt-1 text-sm text-tertiary">
-              Run <code className="rounded bg-secondary px-1">python -m pipelines.features --run {symbol}</code> to compute it.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-6 lg:grid-cols-3">
-              <Card title="RSI (14)" subtitle="Momentum: below 30 oversold, above 70 overbought">
-                <RsiGauge value={features.rsi} />
-              </Card>
-              <Card title="Sector percentile" className="lg:col-span-2"
+              <Card title="Sector percentile"
                 subtitle={`Share of ${Math.max(peers.length - 1, 0)} ${ticker?.sector ?? ''} peers this stock beats (100 = best)`}>
                 <RankRings peers={peers} symbol={symbol} />
               </Card>
-            </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card title="Profile vs. sector" subtitle="Percentile on each metric; dashed ring is the sector median">
-                <SectorRadar peers={peers} symbol={symbol} />
-              </Card>
-              <Card title="Valuation vs. sector" subtitle="Multiples compared with the sector median">
-                <ValuationBars peers={peers} symbol={symbol} />
-              </Card>
-            </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <Card title="Profile vs. sector" subtitle="Percentile on each metric; dashed ring is the sector median">
+                  <SectorRadar peers={peers} symbol={symbol} />
+                </Card>
+                <Card title="Valuation vs. sector" subtitle="Multiples compared with the sector median">
+                  <ValuationBars peers={peers} symbol={symbol} />
+                </Card>
+              </div>
 
-            <MetricsTables features={features} peers={peers} symbol={symbol} />
-          </>
+              <MetricsTables features={features} peers={peers} symbol={symbol} />
+            </>
+          )}
+        </div>
+
+        {/* Right rail: follows the scroll on wide screens */}
+        <aside className="flex flex-col gap-6 xl:sticky xl:top-22 xl:h-[calc(100dvh-7rem)]">
+          <KeyStats daily={daily} features={features} />
+          <NewsFeed ticker={symbol} />
+        </aside>
+
+        {ticker?.sector && (
+          <div className="xl:col-span-2">
+            <SectorCompareTable symbol={symbol} sector={ticker.sector} peers={peers} />
+          </div>
         )}
-
-        {ticker?.sector && <SectorCompareTable symbol={symbol} sector={ticker.sector} peers={peers} />}
       </div>
     </div>
   )

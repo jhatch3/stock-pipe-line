@@ -335,7 +335,7 @@ export default function PriceChart({ ticker }) {
   const activeOverlays = [showBB, showVWAP, showSMA50, showSMA200].some(Boolean)
 
   if (loading) return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-6">
       <div className={`${CARD} p-5`}>
         <div className="h-8 w-64 bg-gray-100 rounded-sm animate-pulse mb-3" />
         <div className="h-[320px] bg-gray-50 rounded-lg animate-pulse" />
@@ -355,16 +355,16 @@ export default function PriceChart({ ticker }) {
   )
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-6">
 
       {/* ── Card 1: Price chart ──────────────────────────────────────────────── */}
       <div className={`${CARD} p-5`}>
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <RangeBar range={range} setRange={setRange} />
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="max-w-full overflow-x-auto scrollbar-hide"><RangeBar range={range} setRange={setRange} /></div>
+          <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
             <span className="text-xs text-tertiary">Overlays</span>
-            <OverlayToggles active={overlays} onChange={setOverlays} />
+            <div className="max-w-full overflow-x-auto scrollbar-hide"><OverlayToggles active={overlays} onChange={setOverlays} /></div>
           </div>
         </div>
 

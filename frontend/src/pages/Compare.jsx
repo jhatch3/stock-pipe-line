@@ -240,7 +240,7 @@ export default function Compare() {
             )}
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card title="Profile" subtitle="Percentile vs. all tracked stocks (100 = best)">
               <ResponsiveContainer width="100%" height={320}>
                 <RadarChart data={radarData} outerRadius="70%" className={chartClass}>

@@ -109,7 +109,7 @@ function Kpis({ rows }) {
   const worst = sectors[sectors.length - 1]
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <KpiCard label="S&P 500 (SPY)">
         <div className="flex items-end justify-between gap-3">
           <div>
@@ -150,7 +150,7 @@ function Kpis({ rows }) {
 function SectorPerformance({ rows, win }) {
   const data = sectorAverages(rows.filter(r => r.sector !== 'ETF'), win).map(s => ({ ...s, pct: s.avg * 100 }))
   return (
-    <ResponsiveContainer width="100%" height={Math.max(260, data.length * 30)}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={Math.max(260, data.length * 30)}>
       <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
         className="text-tertiary [&_.recharts-text]:text-xs">
         <CartesianGrid horizontal={false} stroke="currentColor" className="text-utility-neutral-100" />
@@ -354,18 +354,18 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {[0, 1, 2].map(i => <div key={i} className={`${CARD} h-32 animate-pulse`} />)}
         </div>
       ) : (
         <div className="flex flex-col gap-8">
           <Kpis rows={rows} />
 
-          <div className="grid gap-6 xl:grid-cols-5">
-            <section className={`${CARD} p-5 xl:col-span-3`}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+            <section className={`${CARD} flex flex-col p-5 xl:col-span-3`}>
               <SectionTitle title="Sector performance" subtitle="Average change per sector"
                 right={<WindowTabs value={win} onChange={setWin} />} />
-              <SectorPerformance rows={rows} win={win} />
+              <div className="min-h-0 flex-1"><SectorPerformance rows={rows} win={win} /></div>
             </section>
             <section className={`${CARD} p-5 xl:col-span-2`}>
               <SectionTitle title="Movers" subtitle={`Largest ${WINDOWS.find(w => w.id === win).label} moves`} />
